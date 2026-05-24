@@ -1,0 +1,20 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class CategoryRequest extends FormRequest
+{
+    public function authorize(): bool { return true; }
+
+    public function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'in:income,expense'],
+            'icon' => ['nullable', 'string', 'max:48'],
+            'color' => ['nullable', 'string', 'max:24'],
+        ];
+    }
+}

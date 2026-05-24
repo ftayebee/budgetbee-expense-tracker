@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ExpenseTrack — Android UI Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="android-frame.jsx"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: oklch(0.14 0.02 250);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+  }
+  .stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
+  }
+  .screen-scroll {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .screen-scroll::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+<div class="stage" id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ─── DESIGN TOKENS ───────────────────────────────────────────────
+const T = {
+  primary:   'oklch(0.55 0.16 178)',
+  primary2:  'oklch(0.92 0.06 178)',
+  income:    'oklch(0.52 0.16 145)',
+  income2:   'oklch(0.92 0.07 145)',
+  expense:   'oklch(0.57 0.18 25)',
+  expense2:  'oklch(0.94 0.06 25)',
+  warning:   'oklch(0.72 0.16 75)',
+  warning2:  'oklch(0.96 0.06 75)',
+  bg:        'oklch(0.975 0.004 240)',
+  card:      '#ffffff',
+  border:    'oklch(0.92 0.005 240)',
+  text:      'oklch(0.18 0.01 240)',
+  text2:     'oklch(0.50 0.01 240)',
+  text3:     'oklch(0.70 0.01 240)',
+};
+
+const shadow = '0 2px 12px oklch(0 0 0 / 0.07)';
+const shadowMd = '0 4px 24px oklch(0 0 0 / 0.10)';
+
+// ─── SAMPLE DATA ─────────────────────────────────────────────────
+const TRANSACTIONS = [
+  { id:1, type:'income',  title:'Freelance Payment', cat:'Freelance',  icon:'💼', amount:2800, date:'Apr 28', method:'Bank Transfer' },
+  { id:2, type:'expense', title:'Grocery Store',     cat:'Food',       icon:'🛒', amount:145,  date:'Apr 27', method:'Cash' },
+  { id:3, type:'expense', title:'Netflix',           cat:'Subscriptions', icon:'📺', amount:15, date:'Apr 26', method:'Card' },
+  { id:4, type:'income',  title:'Client Invoice',    cat:'Business',   icon:'📋', amount:1200, date:'Apr 25', method:'Bank Transfer' },
+  { id:5, type:'expense', title:'Electricity Bill',  cat:'Utilities',  icon:'⚡', amount:89,   date:'Apr 24', method:'Card' },
+  { id:6, type:'expense', title:'Coffee Shop',       cat:'Food',       icon:'☕', amount:12,   date:'Apr 23', method:'Cash' },
+  { id:7, type:'expense', title:'Gym Membership',    cat:'Health',     icon:'🏋️', amount:45,  date:'Apr 22', method:'Card' },
+  { id:8, type:'income',  title:'Part-time Work',    cat:'Salary',     icon:'💰', amount:600,  date:'Apr 20', method:'Bank Transfer' },
+  { id:9, type:'expense', title:'Rent',              cat:'Housing',    icon:'🏠', amount:900,  date:'Apr 19', method:'Bank Transfer' },
+  { id:10, type:'expense',title:'Fuel',              cat:'Transport',  icon:'⛽', amount:55,   date:'Apr 18', method:'Cash' },
+];
+
+const CATEGORIES_EXPENSE = [
+  { id:1, name:'Food',          icon:'🛒', color:'oklch(0.70 0.15 55)',  budget:300, spent:245 },
+  { id:2, name:'Transport',     icon:'🚗', color:'oklch(0.65 0.15 200)', budget:150, spent:155 },
+  { id:3, name:'Utilities',     icon:'⚡', color:'oklch(0.72 0.14 75)',  budget:200, spent:89  },
+  { id:4, name:'Housing',       icon:'🏠', color:'oklch(0.62 0.15 270)', budget:1000,spent:900 },
+  { id:5, name:'Health',        icon:'🏥', color:'oklch(0.60 0.16 10)',  budget:100, spent:45  },
+  { id:6, name:'Subscriptions', icon:'📺', color:'oklch(0.60 0.16 320)', budget:50,  spent:15  },
+  { id:7, name:'Shopping',      icon:'🛍️', color:'oklch(0.68 0.14 25)',  budget:200, spent:0   },
+  { id:8, name:'Education',     icon:'📚', color:'oklch(0.65 0.14 145)', budget:150, spent:0   },
+];
+const CATEGORIES_INCOME = [
+  { id:9,  name:'Salary',    icon:'💰', color:'oklch(0.52 0.16 145)', budget:0, spent:0 },
+  { id:10, name:'Freelance', icon:'💼', color:'oklch(0.55 0.16 178)', budget:0, spent:0 },
+  { id:11, name:'Business',  icon:'📋', color:'oklch(0.62 0.15 200)', budget:0, spent:0 },
+  { id:12, name:'Investment',icon:'📈', color:'oklch(0.65 0.14 145)', budget:0, spent:0 },
+];
+
+// ─── REUSABLE COMPONENTS ─────────────────────────────────────────
+const Btn = ({ children, onClick, variant='primary', style:s, disabled }) => {
+  const base = {
+    padding: '14px 20px', borderRadius: 14, border: 'none', cursor: disabled ? 'default' : 'pointer',
+    fontFamily: 'DM Sans', fontWeight: 600, fontSize: 15, display: 'flex',
+    alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'opacity 0.15s', opacity: disabled ? 0.5 : 1,
+  };
+  const variants = {
+    primary:   { background: T.primary, color: '#fff', width: '100%' },
+    secondary: { background: T.primary2, color: T.primary, width: '100%' },
+    ghost:     { background: 'transparent', color: T.primary, width: '100%' },
+    income:    { background: T.income, color: '#fff', flex: 1 },
+    expense:   { background: T.expense, color: '#fff', flex: 1 },
+    outline:   { background: 'transparent', color: T.primary, border: `1.5px solid ${T.primary}`, width: '100%' },
+  };
+  return <button onClick={onClick} style={{...base, ...variants[variant], ...s}}>{children}</button>;
+};
+
+const Input = ({ label, placeholder, type='text', value, onChange, prefix, icon }) => (
+  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+    {label && <label style={{ fontSize:13, fontWeight:600, color:T.text2 }}>{label}</label>}
+    <div style={{ display:'flex', alignItems:'center', gap:8, background: T.bg, borderRadius:12, padding:'0 14px', border:`1.5px solid ${T.border}` }}>
+      {icon && <span style={{ fontSize:16 }}>{icon}</span>}
+      {prefix && <span style={{ color:T.text2, fontWeight:600, fontSize:16 }}>{prefix}</span>}
+      <input type={type} placeholder={placeholder} value={value} onChange={onChange}
+        style={{ flex:1, padding:'13px 0', background:'transparent', border:'none', outline:'none',
+          fontSize:15, color:T.text, fontFamily:'DM Sans' }} />
+    </div>
+  </div>
+);
+
+const Card = ({ children, style:s, onClick }) => (
+  <div onClick={onClick} style={{ background:T.card, borderRadius:18, padding:18, boxShadow:shadow, ...s }}>
+    {children}
+  </div>
+);
+
+const TopBar = ({ title, back, onBack, right }) => (
+  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 20px 8px', background:T.card, borderBottom:`1px solid ${T.border}` }}>
+    {back
+      ? <button onClick={onBack} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, padding:'2px 6px', color:T.text }}>←</button>
+      : <div style={{ width:36 }}/>}
+    <span style={{ fontSize:17, fontWeight:700, color:T.text }}>{title}</span>
+    {right || <div style={{ width:36 }}/>}
+  </div>
+);
+
+const Tag = ({ children, color, bg }) => (
+  <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:20, color, background:bg }}>{children}</span>
+);
+
+const BottomNav = ({ active, go }) => {
+  const items = [
+    { id:'dashboard', icon:'⊞', label:'Home' },
+    { id:'transactions', icon:'↕', label:'Transactions' },
+    { id:'add', icon:'+', label:'Add', fab:true },
+    { id:'reports', icon:'◉', label:'Reports' },
+    { id:'settings', icon:'◎', label:'Settings' },
+  ];
+  return (
+    <div style={{ display:'flex', background:T.card, borderTop:`1px solid ${T.border}`, padding:'8px 0 4px' }}>
+      {items.map(it => (
+        <button key={it.id} onClick={() => go(it.id === 'add' ? 'add-transaction' : it.id)}
+          style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2,
+            background:'none', border:'none', cursor:'pointer', padding:'4px 0' }}>
+          {it.fab
+            ? <div style={{ width:48, height:48, borderRadius:16, background:T.primary, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:26, fontWeight:300, marginTop:-18, boxShadow:`0 4px 16px ${T.primary}88` }}>{it.icon}</div>
+            : <span style={{ fontSize:20, opacity: active===it.id ? 1 : 0.4 }}>{it.icon}</span>}
+          <span style={{ fontSize:10, fontWeight:600, color: active===it.id ? T.primary : T.text3 }}>{it.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// ─── SCREENS ─────────────────────────────────────────────────────
+
+// 1. SPLASH
+const SplashScreen = ({ go }) => {
+  useEffect(() => { const t = setTimeout(() => go('onboarding'), 2000); return () => clearTimeout(t); }, []);
+  return (
+    <div style={{ height:'100%', background:`linear-gradient(160deg, ${T.primary}, oklch(0.42 0.18 200))`,
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
+      <div style={{ width:80, height:80, borderRadius:24, background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:40 }}>💸</div>
+      <div style={{ color:'#fff', fontSize:28, fontWeight:700 }}>ExpenseTrack</div>
+      <div style={{ color:'rgba(255,255,255,0.7)', fontSize:14 }}>Smart Finance Manager</div>
+      <div style={{ marginTop:40, display:'flex', gap:6 }}>
+        {[0,1,2].map(i => <div key={i} style={{ width:i===0?20:6, height:6, borderRadius:3, background:`rgba(255,255,255,${i===0?1:0.4})` }}/>)}
+      </div>
+    </div>
+  );
+};
+
+// 2. ONBOARDING
+const OnboardingScreen = ({ go }) => {
+  const [step, setStep] = useState(0);
+  const slides = [
+    { icon:'📊', title:'Track Everything', sub:'Monitor your income and expenses effortlessly in one place.' },
+    { icon:'🎯', title:'Set Smart Budgets', sub:'Create budgets per category and get alerts before overspending.' },
+    { icon:'📈', title:'See Your Progress', sub:'Beautiful reports show where your money goes each month.' },
+  ];
+  const s = slides[step];
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
+      <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:28, padding:32 }}>
+        <div style={{ width:120, height:120, borderRadius:36, background:T.primary2, display:'flex', alignItems:'center', justifyContent:'center', fontSize:60 }}>{s.icon}</div>
+        <div style={{ textAlign:'center', display:'flex', flexDirection:'column', gap:12 }}>
+          <div style={{ fontSize:24, fontWeight:700, color:T.text }}>{s.title}</div>
+          <div style={{ fontSize:15, color:T.text2, lineHeight:1.6 }}>{s.sub}</div>
+        </div>
+        <div style={{ display:'flex', gap:6 }}>
+          {slides.map((_,i) => <div key={i} style={{ width:i===step?20:6, height:6, borderRadius:3, background:i===step?T.primary:T.border, transition:'all 0.3s' }}/>)}
+        </div>
+      </div>
+      <div style={{ padding:'0 24px 32px', display:'flex', flexDirection:'column', gap:12 }}>
+        {step < 2
+          ? <Btn onClick={() => setStep(step+1)}>Next →</Btn>
+          : <Btn onClick={() => go('login')}>Get Started</Btn>}
+        {step < 2 && <Btn variant='ghost' onClick={() => go('login')}>Skip</Btn>}
+      </div>
+    </div>
+  );
+};
+
+// 3. LOGIN
+const LoginScreen = ({ go }) => {
+  const [email, setEmail] = useState('');
+  const [pass, setPass] = useState('');
+  return (
+    <div className="screen-scroll" style={{ height:'100%' }}>
+      <div style={{ padding:'40px 24px 32px', display:'flex', flexDirection:'column', gap:28 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+          <div style={{ fontSize:26, fontWeight:700, color:T.text }}>Welcome back 👋</div>
+          <div style={{ fontSize:14, color:T.text2 }}>Sign in to continue tracking</div>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <Input label="Email" placeholder="you@email.com" type="email" icon="✉️" value={email} onChange={e=>setEmail(e.target.value)} />
+          <Input label="Password" placeholder="••••••••" type="password" icon="🔒" value={pass} onChange={e=>setPass(e.target.value)} />
+          <button onClick={() => go('forgot-password')} style={{ background:'none', border:'none', cursor:'pointer', color:T.primary, fontWeight:600, fontSize:13, textAlign:'right', fontFamily:'DM Sans' }}>Forgot Password?</button>
+        </div>
+        <Btn onClick={() => go('dashboard')}>Sign In</Btn>
+        <div style={{ textAlign:'center', fontSize:13, color:T.text2 }}>
+          Don't have an account? <button onClick={() => go('register')} style={{ background:'none', border:'none', color:T.primary, fontWeight:700, cursor:'pointer', fontFamily:'DM Sans', fontSize:13 }}>Sign Up</button>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ flex:1, height:1, background:T.border }}/>
+          <span style={{ color:T.text3, fontSize:12 }}>or continue with</span>
+          <div style={{ flex:1, height:1, background:T.border }}/>
+        </div>
+        <div style={{ display:'flex', gap:12 }}>
+          <Btn variant='outline' style={{ flex:1 }}>🔵 Google</Btn>
+          <Btn variant='outline' style={{ flex:1 }}>⬛ Apple</Btn>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 4. REGISTER
+const RegisterScreen = ({ go }) => (
+  <div className="screen-scroll" style={{ height:'100%' }}>
+    <TopBar title="Create Account" back onBack={() => go('login')} />
+    <div style={{ padding:'24px', display:'flex', flexDirection:'column', gap:16 }}>
+      <div style={{ fontSize:14, color:T.text2 }}>Fill in your details to get started</div>
+      <Input label="Full Name" placeholder="John Doe" icon="👤" />
+      <Input label="Email" placeholder="you@email.com" type="email" icon="✉️" />
+      <Input label="Password" placeholder="Min. 8 characters" type="password" icon="🔒" />
+      <Input label="Confirm Password" placeholder="Re-enter password" type="password" icon="🔒" />
+      <div style={{ background:T.primary2, borderRadius:12, padding:'12px 14px', fontSize:12, color:T.primary, lineHeight:1.6 }}>
+        By registering, you agree to our <b>Terms of Service</b> and <b>Privacy Policy</b>
+      </div>
+      <Btn onClick={() => go('dashboard')}>Create Account</Btn>
+      <div style={{ textAlign:'center', fontSize:13, color:T.text2 }}>
+        Already have an account? <button onClick={() => go('login')} style={{ background:'none', border:'none', color:T.primary, fontWeight:700, cursor:'pointer', fontFamily:'DM Sans', fontSize:13 }}>Sign In</button>
+      </div>
+    </div>
+  </div>
+);
+
+// 5. FORGOT PASSWORD
+const ForgotScreen = ({ go }) => {
+  const [sent, setSent] = useState(false);
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
+      <TopBar title="Forgot Password" back onBack={() => go('login')} />
+      <div style={{ flex:1, padding:'32px 24px', display:'flex', flexDirection:'column', gap:24 }}>
+        {!sent ? <>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <div style={{ fontSize:18, fontWeight:700, color:T.text }}>Reset your password</div>
+            <div style={{ fontSize:14, color:T.text2, lineHeight:1.6 }}>Enter your email and we'll send a reset link to your inbox.</div>
+          </div>
+          <Input label="Email" placeholder="you@email.com" type="email" icon="✉️" />
+          <Btn onClick={() => setSent(true)}>Send Reset Link</Btn>
+        </> : <>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:20, paddingTop:40, textAlign:'center' }}>
+            <div style={{ width:80, height:80, borderRadius:40, background:T.income2, display:'flex', alignItems:'center', justifyContent:'center', fontSize:40 }}>✅</div>
+            <div style={{ fontSize:18, fontWeight:700, color:T.text }}>Email Sent!</div>
+            <div style={{ fontSize:14, color:T.text2, lineHeight:1.6 }}>Check your inbox for the password reset link. It expires in 30 minutes.</div>
+            <Btn onClick={() => go('login')}>Back to Login</Btn>
+          </div>
+        </>}
+      </div>
+    </div>
+  );
+};
+
+// 6. DASHBOARD
+const DashboardScreen = ({ go }) => {
+  const balance = 4284;
+  const income = 4600;
+  const expense = 1316;
+  const barData = [
+    { month:'Jan', inc:3200, exp:2100 }, { month:'Feb', inc:2800, exp:1900 },
+    { month:'Mar', inc:3800, exp:2400 }, { month:'Apr', inc:4600, exp:1316 },
+  ];
+  const maxVal = 5000;
+  return (
+    <div className="screen-scroll" style={{ height:'100%', background:T.bg }}>
+      {/* Header */}
+      <div style={{ background:`linear-gradient(135deg, ${T.primary}, oklch(0.45 0.18 200))`, padding:'20px 20px 32px' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <div>
+            <div style={{ color:'rgba(255,255,255,0.8)', fontSize:13 }}>Good morning 👋</div>
+            <div style={{ color:'#fff', fontSize:18, fontWeight:700 }}>Alex Johnson</div>
+          </div>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => go('notifications')} style={{ width:40, height:40, borderRadius:12, background:'rgba(255,255,255,0.2)', border:'none', cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>🔔</button>
+            <button onClick={() => go('settings')} style={{ width:40, height:40, borderRadius:12, background:'rgba(255,255,255,0.2)', border:'none', cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>⚙️</button>
+          </div>
+        </div>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ color:'rgba(255,255,255,0.8)', fontSize:13, marginBottom:4 }}>Total Balance</div>
+          <div style={{ color:'#fff', fontSize:38, fontWeight:700 }}>${balance.toLocaleString()}</div>
+          <div style={{ color:'rgba(255,255,255,0.7)', fontSize:13, marginTop:4 }}>April 2026</div>
+        </div>
+      </div>
+
+      {/* Income/Expense cards */}
+      <div style={{ padding:'0 16px', marginTop:-20, display:'flex', gap:12 }}>
+        <div style={{ flex:1, background:T.card, borderRadius:18, padding:'14px 16px', boxShadow:shadowMd }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+            <div style={{ width:32, height:32, borderRadius:10, background:T.income2, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>↑</div>
+            <span style={{ fontSize:12, color:T.text2, fontWeight:600 }}>Income</span>
+          </div>
+          <div style={{ fontSize:18, fontWeight:700, color:T.income }}>${income.toLocaleString()}</div>
+        </div>
+        <div style={{ flex:1, background:T.card, borderRadius:18, padding:'14px 16px', boxShadow:shadowMd }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+            <div style={{ width:32, height:32, borderRadius:10, background:T.expense2, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>↓</div>
+            <span style={{ fontSize:12, color:T.text2, fontWeight:600 }}>Expenses</span>
+          </div>
+          <div style={{ fontSize:18, fontWeight:700, color:T.expense }}>${expense.toLocaleString()}</div>
+        </div>
+      </div>
+
+      <div style={{ padding:'16px 16px 24px', display:'flex', flexDirection:'column', gap:14 }}>
+        {/* Chart */}
+        <Card>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <span style={{ fontSize:14, fontWeight:700, color:T.text }}>Monthly Overview</span>
+            <Tag color={T.primary} bg={T.primary2}>This Year</Tag>
+          </div>
+          <div style={{ display:'flex', alignItems:'flex-end', gap:8, height:90 }}>
+            {barData.map((d,i) => (
+              <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                <div style={{ width:'100%', display:'flex', gap:3, alignItems:'flex-end', height:72 }}>
+                  <div style={{ flex:1, background:T.income2, borderRadius:'4px 4px 0 0', height:`${(d.inc/maxVal)*72}px`, transition:'height 0.5s' }}>
+                    <div style={{ width:'100%', background:T.income, borderRadius:'4px 4px 0 0', height:`${(d.inc/maxVal)*72}px` }}/>
+                  </div>
+                  <div style={{ flex:1, background:T.expense2, borderRadius:'4px 4px 0 0', height:`${(d.exp/maxVal)*72}px` }}>
+                    <div style={{ width:'100%', background:T.expense, borderRadius:'4px 4px 0 0', height:`${(d.exp/maxVal)*72}px` }}/>
+                  </div>
+                </div>
+                <span style={{ fontSize:10, color:T.text3 }}>{d.month}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display:'flex', gap:14, marginTop:10 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:5 }}><div style={{ width:10, height:10, borderRadius:3, background:T.income }}/><span style={{ fontSize:11, color:T.text2 }}>Income</span></div>
+            <div style={{ display:'flex', alignItems:'center', gap:5 }}><div style={{ width:10, height:10, borderRadius:3, background:T.expense }}/><span style={{ fontSize:11, color:T.text2 }}>Expense</span></div>
+          </div>
+        </Card>
+
+        {/* Savings progress */}
+        <Card>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:10 }}>
+            <span style={{ fontSize:14, fontWeight:700, color:T.text }}>Savings Rate</span>
+            <span style={{ fontSize:14, fontWeight:700, color:T.income }}>71%</span>
+          </div>
+          <div style={{ height:8, background:T.border, borderRadius:4, overflow:'hidden' }}>
+            <div style={{ width:'71%', height:'100%', background:`linear-gradient(90deg, ${T.income}, ${T.primary})`, borderRadius:4 }}/>
+          </div>
+          <div style={{ fontSize:12, color:T.text2, marginTop:8 }}>You saved $3,284 this month 🎉</div>
+        </Card>
+
+        {/* Quick Actions */}
+        <div style={{ display:'flex', gap:10 }}>
+          <Btn variant='income' onClick={() => go('add-transaction')} style={{ borderRadius:14, padding:'12px 8px', fontSize:13 }}>+ Add Income</Btn>
+          <Btn variant='expense' onClick={() => go('add-transaction')} style={{ borderRadius:14, padding:'12px 8px', fontSize:13 }}>- Add Expense</Btn>
+        </div>
+
+        {/* Recent Transactions */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <span style={{ fontSize:15, fontWeight:700, color:T.text }}>Recent Transactions</span>
+          <button onClick={() => go('transactions')} style={{ background:'none', border:'none', color:T.primary, fontWeight:600, fontSize:13, cursor:'pointer' }}>See all</button>
+        </div>
+        {TRANSACTIONS.slice(0,5).map(tx => (
+          <TxCard key={tx.id} tx={tx} onClick={() => go('tx-detail')} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const TxCard = ({ tx, onClick }) => (
+  <div onClick={onClick} style={{ background:T.card, borderRadius:16, padding:'14px 16px', display:'flex', alignItems:'center', gap:12, boxShadow:shadow, cursor:'pointer' }}>
+    <div style={{ width:44, height:44, borderRadius:14, background: tx.type==='income' ? T.income2 : T.expense2, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>{tx.icon}</div>
+    <div style={{ flex:1, minWidth:0 }}>
+      <div style={{ fontSize:14, fontWeight:600, color:T.text, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{tx.title}</div>
+      <div style={{ fontSize:12, color:T.text2, marginTop:2 }}>{tx.cat} · {tx.date}</div>
+    </div>
+    <div style={{ fontSize:15, fontWeight:700, color: tx.type==='income' ? T.income : T.expense, flexShrink:0 }}>
+      {tx.type==='income' ? '+' : '-'}${tx.amount}
+    </div>
+  </div>
+);
+
+// 7. ADD TRANSACTION
+const AddTransactionScreen = ({ go }) => {
+  const [type, setType] = useState('expense');
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [cat, setCat] = useState('');
+  const [method, setMethod] = useState('Cash');
+  const cats = type === 'expense' ? CATEGORIES_EXPENSE : CATEGORIES_INCOME;
+  const methods = ['Cash','Bank Transfer','Card','Wallet'];
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', background:T.bg }}>
+      <TopBar title="Add Transaction" back onBack={() => go('dashboard')} />
+      <div className="screen-scroll" style={{ flex:1 }}>
+        <div style={{ padding:'16px', display:'flex', flexDirection:'column', gap:14 }}>
+          {/* Type toggle */}
+          <div style={{ display:'flex', background:T.border, borderRadius:14, padding:4 }}>
+            {['expense','income'].map(t => (
+              <button key={t} onClick={() => setType(t)}
+                style={{ flex:1, padding:'11px', borderRadius:11, border:'none', cursor:'pointer', fontFamily:'DM Sans', fontWeight:600, fontSize:14, transition:'all 0.2s',
+                  background: type===t ? (t==='income' ? T.income : T.expense) : 'transparent',
+                  color: type===t ? '#fff' : T.text2 }}>
+                {t === 'income' ? '↑ Income' : '↓ Expense'}
+              </button>
+            ))}
+          </div>
+
+          {/* Amount */}
+          <Card style={{ textAlign:'center', padding:'24px 20px' }}>
+            <div style={{ fontSize:13, color:T.text2, marginBottom:8 }}>Amount</div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
+              <span style={{ fontSize:28, fontWeight:300, color:T.text2 }}>$</span>
+              <input value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" type="number"
+                style={{ fontSize:40, fontWeight:700, color: type==='income'?T.income:T.expense, border:'none', outline:'none', background:'transparent', width:160, textAlign:'center', fontFamily:'DM Sans' }} />
+            </div>
+          </Card>
+
+          <Input label="Note" placeholder="What's this for?" icon="📝" value={note} onChange={e=>setNote(e.target.value)} />
+
+          {/* Category */}
+          <div>
+            <label style={{ fontSize:13, fontWeight:600, color:T.text2, marginBottom:8, display:'block' }}>Category</label>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+              {cats.map(c => (
+                <button key={c.id} onClick={() => setCat(c.name)}
+                  style={{ padding:'8px 12px', borderRadius:10, border:`1.5px solid ${cat===c.name ? c.color : T.border}`, background: cat===c.name ? c.color+'22' : T.card,
+                    cursor:'pointer', display:'flex', alignItems:'center', gap:6, fontFamily:'DM Sans', fontSize:13, fontWeight:500,
+                    color: cat===c.name ? c.color : T.text2, transition:'all 0.15s' }}>
+                  <span>{c.icon}</span><span>{c.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment method */}
+          <div>
+            <label style={{ fontSize:13, fontWeight:600, color:T.text2, marginBottom:8, display:'block' }}>Payment Method</label>
+            <div style={{ display:'flex', gap:8 }}>
+              {methods.map(m => (
+                <button key={m} onClick={() => setMethod(m)}
+                  style={{ flex:1, padding:'10px 4px', borderRadius:10, border:`1.5px solid ${method===m ? T.primary : T.border}`,
+                    background: method===m ? T.primary2 : T.card, cursor:'pointer', fontFamily:'DM Sans', fontSize:11, fontWeight:600,
+                    color: method===m ? T.primary : T.text2, transition:'all 0.15s' }}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Input label="Date" type="date" icon="📅" />
+
+          {/* Attachment */}
+          <button style={{ border:`1.5px dashed ${T.border}`, borderRadius:14, padding:'16px', background:T.bg, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, color:T.text2, fontFamily:'DM Sans', fontSize:14 }}>
+            📎 Attach Receipt (optional)
+          </button>
+
+          <Btn onClick={() => go('dashboard')} style={{ background: type==='income' ? T.income : T.expense }}>
+            Save Transaction
+          </Btn>
+          <div style={{ height:8 }}/>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 8. TRANSACTION LIST
+const TransactionListScreen = ({ go }) => {
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const filtered = TRANSACTIONS.filter(tx => {
+    if (filter === 'income' && tx.type !== 'income') return false;
+    if (filter === 'expense' && tx.type !== 'expense') return false;
+    if (search && !tx.title.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', background:T.bg }}>
+      <div style={{ background:T.card, padding:'14px 16px 12px', borderBottom:`1px solid ${T.border}` }}>
+        <div style={{ fontSize:17, fontWeight:700, color:T.text, marginBottom:12 }}>Transactions</div>
+        <div style={{ display:'flex', alignItems:'center', gap:8, background:T.bg, borderRadius:12, padding:'0 14px', border:`1.5px solid ${T.border}` }}>
+          <span style={{ fontSize:15 }}>🔍</span>
+          <input placeholder="Search transactions..." value={search} onChange={e=>setSearch(e.target.value)}
+            style={{ flex:1, padding:'11px 0', background:'transparent', border:'none', outline:'none', fontSize:14, color:T.text, fontFamily:'DM Sans' }} />
+        </div>
+        <div style={{ display:'flex', gap:8, marginTop:10 }}>
+          {['all','income','expense'].map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              style={{ padding:'6px 14px', borderRadius:20, border:'none', cursor:'pointer', fontFamily:'DM Sans', fontWeight:600, fontSize:12,
+                background: filter===f ? T.primary : T.border, color: filter===f ? '#fff' : T.text2 }}>
+              {f.charAt(0).toUpperCase()+f.slice(1)}
+            </button>
+          ))}
+          <button onClick={() => go('filters')} style={{ marginLeft:'auto', padding:'6px 12px', borderRadius:20, border:`1.5px solid ${T.border}`, background:T.card, cursor:'pointer', fontFamily:'DM Sans', fontWeight:600, fontSize:12, color:T.text2 }}>
+            ⚙ Filter
+          </button>
+        </div>
+      </div>
+      <div className="screen-scroll" style={{ flex:1, padding:'12px 16px', display:'flex', flexDirection:'column', gap:8 }}>
+        {filtered.length === 0
+          ? <EmptyState icon="🔍" title="No transactions found" sub="Try adjusting your filters or search terms." />
+          : filtered.map(tx => <TxCard key={tx.id} tx={tx} onClick={() => go('tx-detail')} />)}
+        <div style={{ height:8 }}/>
+      </div>
+    </div>
+  );
+};
+
+// 9. TRANSACTION DETAIL
+const TxDetailScreen = ({ go }) => {
+  const tx = TRANSACTIONS[0];
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', background:T.bg }}>
+      <TopBar title="Transaction Detail" back onBack={() => go('transactions')}
+        right={<button onClick={() => go('edit-transaction')} style={{ background:'none', border:'none', cursor:'pointer', color:T.primary, fontWeight:600, fontSize:14 }}>Edit</button>} />
+      <div className="screen-scroll" style={{ flex:1, padding:16 }}>
+        <Card style={{ textAlign:'center', marginBottom:14 }}>
+          <div style={{ width:64, height:64, borderRadius:20, background:T.income2, display:'flex', alignItems:'center', justifyContent:'center', fontSize:32, margin:'0 auto 12px' }}>{tx.icon}</div>
+          <div style={{ fontSize:13, color:T.text2 }}>{tx.type === 'income' ? 'Income' : 'Expense'}</div>
+          <div style={{ fontSize:32, fontWeight:700, color: tx.type==='income' ? T.income : T.expense, margin:'6px 0' }}>
+            {tx.type==='income' ? '+' : '-'}${tx.amount.toLocaleString()}
+          </div>
+          <div style={{ fontSize:15, fontWeight:600, color:T.text }}>{tx.title}</div>
+        </Card>
+        <Card style={{ marginBottom:14 }}>
+          {[
+            ['Category', `${tx.icon} ${tx.cat}`],
+            ['Date', tx.date + ', 2026'],
+            ['Payment', tx.method],
+            ['Status', '✅ Completed'],
+          ].map(([k,v]) => (
+            <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:`1px solid ${T.border}` }}>
+              <span style={{ fontSize:13, color:T.text2 }}>{k}</span>
+              <span style={{ fontSize:13, fontWeight:600, color:T.text }}>{v}</span>
+            </div>
+          ))}
+          <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0' }}>
+            <span style={{ fontSize:13, color:T.text2 }}>Note</span>
+            <span style={{ fontSize:13, fontWeight:600, color:T.text }}>Client project milestone</span>
+          </div>
+        </Card>
+        <div style={{ display:'flex', gap:10 }}>
+          <Btn variant='outline' onClick={() => go('edit-transaction')}>✏️ Edit</Btn>
+          <Btn style={{ background:T.expense, flex:1 }}>🗑 Delete</Btn>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 10. EDIT TRANSACTION (reuse add form)
+const EditTransactionScreen = ({ go }) => {
+  const tx = TRANSACTIONS[0];
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', background:T.bg }}>
+      <TopBar title="Edit Transaction" back onBack={() => go('tx-detail')} />
+      <div className="screen-scroll" style={{ flex:1, padding:16, display:'flex', flexDirection:'column', gap:14 }}>
+        <Card style={{ textAlign:'center', padding:'20px' }}>
+          <div style={{ fontSize:13, color:T.text2, marginBottom:6 }}>Amount</div>
+          <div style={{ fontSize:38, fontWeight:700, color:T.income }}>${tx.amount}</div>
+        </Card>
+        <Input label="Title" placeholder="Transaction title" icon="📝" />
+        <Input label="Category" placeholder="Select category" icon="🏷️" />
+        <Input label="Date" type="date" icon="📅" />
+        <Input label="Payment Method" placeholder="Cash / Card / Transfer" icon="💳" />
+        <Input label="Note" placeholder="Optional note" icon="📋" />
+        <Btn onClick={() => go('tx-detail')}>Save Changes</Btn>
+        <div style={{ height:8 }}/>
+      </div>
+    </div>
+  );
+};
+
+// 11. CATEGORIES
+const CategoriesScreen = ({ go }) => {
+  const [tab, setTab] = useState('expense');
+  const cats = tab === 'expense' ? CATEGORIES_EXPENSE : CATEGORIES_INCOME;
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', background:T.bg }}>
+      <div style={{ background:T.card, padding:'14px 16px 12px', borderBottom:`1px solid ${T.border}` }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+          <span style={{ fontSize:17, fontWeight:700, color:T.text }}>Categories</span>
+          <button onClick={() => go('add-category')} style={{ width:36, height:36, borderRadius:10, background:T.primary, border:'none', cursor:'pointer', color:'#fff', fontSize:22, display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
+        </div>
+        <div style={{ display:'flex', background:T.border, borderRadius:12, padding:3 }}>
+          {['expense','income'].map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ flex:1, padding:'9px', borderRadius:10, border:'none', cursor:'pointer', fontFamily:'DM Sans', fontWeight:600, fontSize:13,
+                background: tab===t ? T.card : 'transparent', color: tab===t ? T.text : T.text2, boxShadow: tab===t ? shadow : 'none' }}>
+              {t === 'expense' ? '↓ Expense' : '↑ Income'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="screen-scroll" style={{ flex:1, padding:'12px 16px', display:'flex', flexDirection:'column', gap:10 }}>
+        {cats.map(c => (
+          <Card key={c.id} style={{ padding:'14px 16px', display:'flex', alignItems:'center', gap:12 }} onClick={() => go('add-category')}>
+            <div style={{ width:44, height:44, borderRadius:14, background:c.color+'22', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>{c.icon}</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:14, fontWeight:600, color:T.text }}>{c.name}</div>
+              {tab === 'expense' && c.budget > 0 && (
+                <div style={{ fontSize:12, color:T.text2, marginTop:2 }}>Budget: ${c.budget}</div>
+              )}
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button style={{ width:30, height:30, borderRadius:8, background:T.primary2, border:'none', cursor:'pointer', fontSize:14 }}>✏️</button>
+              <button style={{ width:30, height:30, borderRadius:8, background:T.expense2, border:'none', cursor:'pointer', fontSize:14 }}>🗑</button>
+            </div>
+          </Card>
+        ))}
+        <div style={{ height:8 }}/>
+      </div>
+    </div>
+  );
+};
+
+// 12. ADD CATEGORY
+const AddCategoryScreen = ({ go }) => {
+  const icons = ['🛒','🚗','⚡','🏠','🏥','📺','🛍️','📚','✈️','🎮','💊','🎁','🍔','☕'];
+  const colors = [T.income, T.expense, T.primary, T.warning, 'oklch(0.60 0.16 320)', 'oklch(0.65 0.15 200)', 'oklch(0.70 0.15 55)', 'oklch(0.62 0.15 270)'];
+  const [selIcon, setSelIcon] = useState('🛒');
+  const [selColor, setSelColor] = useState(colors[0]);
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', background:T.bg }}>
+      <TopBar title="Add Category" back onBack={() => go('categories')} />
+      <div className="screen-scroll" style={{ flex:1, padding:16, display:'flex', flexDirection:'column', gap:16 }}>
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:8 }}>
+          <div style={{ width:80, height:80, borderRadius:24, background:selColor+'22', border:`2px solid ${selColor}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:40 }}>{selIcon}</div>
+        </div>
+        <Input label="Category Name" placeholder="e.g. Entertainment" icon="🏷️" />
+        <div>
+          <label style={{ fontSize:13, fontWeight:600, color:T.text2, marginBottom:8, display:'block' }}>Choose Icon</label>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            {icons.map(ic => (
+              <button key={ic} onClick={() => setSelIcon(ic)}
+                style={{ width:44, height:44, borderRadius:12, border:`2px solid ${selIcon===ic ? T.primary : T.border}`, background: selIcon===ic ? T.primary2 : T.card, cursor:'pointer', fontSize:22 }}>
+                {ic}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize:13, fontWeight:600, color:T.text2, marginBottom:8, display:'block' }}>Choose Color</label>
+          <div style={{ display:'flex', gap:10 }}>
+            {colors.map(c => (
+              <button key={c} onClick={() => setSelColor(c)}
+                style={{ width:36, height:36, borderRadius:10, background:c, border:`3px solid ${selColor===c ? T.text : 'transparent'}`, cursor:'pointer' }}/>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={{ fontSize:13, fontWeight:600, color:T.text2, marginBottom:8, display:'block' }}>Type</label>
+          <div style={{ display:'flex', gap:10 }}>
+            <Btn variant='income' style={{ fontSize:13 }}>↑ Income</Btn>
+            <Btn variant='expense' style={{ fontSize:13 }}>↓ Expense</Btn>
+          </div>
+        </div>
+        <Btn onClick={() => go('categories')}>Save Category</Btn>
+        <div style={{ height:8 }}/>
+      </div>
+    </div>
+  );
+};
+
+// 13. REPORTS
+const ReportsScreen = ({ go }) => {
+  const catData = [
+    { name:'Housing', pct:46, color:T.primary, amt:900 },
+    { name:'Food', pct:19, color:T.income, amt:245 },
+    { name:'Utilities', pct:12, color:T.warning, amt:89 },
+    { name:'Transport', pct:8, color:'oklch(0.65 0.15 200)', amt:55 },
+    { name:'Health', pct:6, color:T.expense, amt:45 },
+    { name:'Other', pct:9, color:T.text3, amt:82 },
+  ];
+  // Simple donut via conic-gradient
+  const gradient = catData.reduce((acc,d,i) => {
+    const prev = acc.prev;
+    const next = prev + d.pct;
+    acc.parts.push(`${d.color} ${prev}% ${next}%`);
+    acc.prev = next;
+    return acc;
+  }, {parts:[], prev:0}).parts.join(', ');
+
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', background:T.bg }}>
+      <div style={{ background:T.card, padding:'14px 16px 12px', borderBottom:`1px solid ${T.border}` }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+          <span style={{ fontSize:17, fontWeight:700, color:T.text }}>Reports</span>
+          <button style={{ padding:'7px 14px', borderRadius:20, background:T.primary2, border:'none', cursor:'pointer', color:T.primary, fontWeight:600, fontSize:12, fontFamily:'DM Sans' }}>
+            📤 Export
+          </button>
+        </div>
+        <div style={{ display:'flex', gap:6 }}>
+          {['This Month','3 Months','This Year'].map((l,i) => (
+            <button key={l} style={{ padding:'6px 12px', borderRadius:20, border:'none', cursor:'pointer', fontFamily:'DM Sans', fontWeight:600, fontSize:11,
+              background: i===0 ? T.primary : T.border, color: i===0 ? '#fff' : T.text2 }}>{l}</button>
+          ))}
+        </div>
+      </div>
+      <div className="screen-scroll" style={{ flex:1, padding:'12px 16px', display:'flex', flexDirection:'column', gap:14 }}>
+        {/* Summary */}
+        <div style={{ display:'flex', gap:10 }}>
+          {[['Income','$4,600',T.income,T.income2,'↑'],['Expenses','$1,316',T.expense,T.expense2,'↓'],['Net','$3,284',T.primary,T.primary2,'=']].map(([l,v,c,bg,ic]) => (
+            <Card key={l} style={{ flex:1, padding:'12px', textAlign:'center' }}>
+              <div style={{ width:28, height:28, borderRadius:8, background:bg, display:'flex', alignItems:'center', justifyContent:'center', color:c, fontWeight:700, fontSize:14, margin:'0 auto 6px' }}>{ic}</div>
+              <div style={{ fontSize:11, color:T.text2 }}>{l}</div>
+              <div style={{ fontSize:14, fontWeight:700, color:c, marginTop:2 }}>{v}</div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Donut chart */}
+        <Card>
+          <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:16 }}>Expense Breakdown</div>
+          <div style={{ display:'flex', alignItems:'center', gap:20 }}>
+            <div style={{ position:'relative', flexShrink:0 }}>
+              <div style={{ width:120, height:120, borderRadius:'50%', background:`conic-gradient(${gradient})` }}/>
+              <div style={{ position:'absolute', inset:16, borderRadius:'50%', background:T.card, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column' }}>
+                <div style={{ fontSize:16, fontWeight:700, color:T.text }}>$1,316</div>
+                <div style={{ fontSize:10, color:T.text2 }}>Total</div>
+              </div>
+            </div>
+            <div style={{ flex:1, display:'flex', flexDirection:'column', gap:7 }}>
+              {catData.map(d => (
+                <div key={d.name} style={{ display:'flex', alignItems:'center', gap:7 }}>
+                  <div style={{ width:8, height:8, borderRadius:2, background:d.color, flexShrink:0 }}/>
+                  <span style={{ flex:1, fontSize:11, color:T.text2 }}>{d.name}</span>
+                  <span style={{ fontSize:11, fontWeight:600, color:T.text }}>{d.pct}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Bar: income vs expense */}
+        <Card>
+          <div style={{ fontSize:14, fontWeight:700, color:T.text, marginBottom:14 }}>Income vs Expense</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {['Income','Expense'].map((l,i) => {
+              const val = i===0 ? 4600 : 1316;
+              const max = 5000;
+              const color = i===0 ? T.income : T.expense;
+              return (
+                <div key={l}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+                    <span style={{ fontSize:12, color:T.text2 }}>{l}</span>
+                    <span style={{ fontSize:12, fontWeight:600, color }}>${val.toLocaleString()}</span>
+                  </div>
+                  <div style={{ height:8, background:T.border, borderRadius:4, overflow:'hidden' }}>
+                    <div style={{ width:`${(val/max)*100}%`, height:'100%', background:color, borderRadius:4, transition:'width 0.6s' }}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* P&L */}
+        <Card style={{ background:`linear-gradient(135deg, ${T.income}, oklch(0.45 0.18 160))` }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,0.8)' }}>Net Profit / Saving</div>
+              <div style={{ fontSize:28, fontWeight:700, color:'#fff', marginTop:4 }}>+$3,284</div>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,0.8)', marginTop:2 }}>71.4% savings rate 🎉</div>
+            </div>
+            <div style={{ fontSize:48 }}>📈</div>
+          </div>
+        </Card>
+        <div style={{ height:8 }}/>
+      </div>
+    </div>
+  );
+};
+
+// 14. BUDGET
+const BudgetScreen = ({ go }) => {
+  const totalBudget = 2000;
+  const totalSpent = 1316;
+  const pct = Math.round((totalSpent/totalBudget)*100);
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', background:T.bg }}>
+      <div style={{ background:T.card, padding:'14px 16px 12px', borderBottom:`1px solid ${T.border}` }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <span style={{ fontSize:17, fontWeight:700, color:T.text }}>Budget</span>
+          <button style={{ padding:'7px 12px', borderRadius:10, background:T.primary, border:'none', cursor:'pointer', color:'#fff', fontWeight:600, fontSize:12, fontFamily:'DM Sans' }}>+ Set Budget</button>
+        </div>
+      </div>
+      <div className="screen-scroll" style={{ flex:1, padding:'12px 16px', display:'flex', flexDirection:'column', gap:14 }}>
+        {/* Overall budget */}
+        <Card style={{ background:`linear-gradient(135deg, ${T.primary}, oklch(0.45 0.18 200))` }}>
+          <div style={{ color:'rgba(255,255,255,0.8)', fontSize:12, marginBottom:4 }}>Monthly Budget</div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:14 }}>
+            <div style={{ color:'#fff', fontSize:28, fontWeight:700 }}>${totalBudget.toLocaleString()}</div>
+            <div style={{ textAlign:'right' }}>
+              <div style={{ color:'rgba(255,255,255,0.8)', fontSize:11 }}>Spent</div>
+              <div style={{ color:'#fff', fontWeight:700 }}>${totalSpent.toLocaleString()}</div>
+            </div>
+          </div>
+          <div style={{ height:8, background:'rgba(255,255,255,0.25)', borderRadius:4, overflow:'hidden' }}>
+            <div style={{ width:`${pct}%`, height:'100%', background:'#fff', borderRadius:4 }}/>
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between', marginTop:8 }}>
+            <div style={{ color:'rgba(255,255,255,0.8)', fontSize:12 }}>{pct}% used</div>
+            <div style={{ color:'rgba(255,255,255,0.9)', fontSize:12, fontWeight:600 }}>${totalBudget-totalSpent} remaining</div>
+          </div>
+        </Card>
+
+        {/* Category budgets */}
+        <div style={{ fontSize:14, fontWeight:700, color:T.text }}>Category Budgets</div>
+        {CATEGORIES_EXPENSE.filter(c => c.budget > 0).map(c => {
+          const p = Math.min(100, Math.round((c.spent/c.budget)*100));
+          const over = c.spent > c.budget;
+          return (
+            <Card key={c.id} style={{ padding:'14px 16px' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+                <div style={{ width:36, height:36, borderRadius:10, background:c.color+'22', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>{c.icon}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between' }}>
+                    <span style={{ fontSize:13, fontWeight:600, color:T.text }}>{c.name}</span>
+                    {over && <Tag color={T.expense} bg={T.expense2}>Over!</Tag>}
+                  </div>
+                  <div style={{ fontSize:11, color:T.text2, marginTop:2 }}>${c.spent} / ${c.budget}</div>
+                </div>
+              </div>
+              <div style={{ height:6, background:T.border, borderRadius:3, overflow:'hidden' }}>
+                <div style={{ width:`${p}%`, height:'100%', background: over ? T.expense : c.color, borderRadius:3, transition:'width 0.5s' }}/>
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginTop:6 }}>
+                <span style={{ fontSize:11, color:T.text2 }}>{p}% used</span>
+                <span style={{ fontSize:11, fontWeight:600, color: over ? T.expense : T.income }}>
+                  {over ? `$${c.spent-c.budget} over budget` : `$${c.budget-c.spent} left`}
+                </span>
+              </div>
+            </Card>
+          );
+        })}
+        <div style={{ height:8 }}/>
+      </div>
+    </div>
+  );
+};
+
+// 15. SETTINGS
+const SettingsScreen = ({ go }) => {
+  const [dark, setDark] = useState(false);
+  const items = [
+    { section:'Account', rows:[
+      { icon:'👤', label:'Edit Profile', action: () => go('profile') },
+      { icon:'🔔', label:'Notifications', action: null },
+      { icon:'💱', label:'Currency', value:'USD $', action: null },
+    ]},
+    { section:'Preferences', rows:[
+      { icon:'🌙', label:'Dark Mode', toggle:true, val:dark, onToggle:() => setDark(!dark) },
+      { icon:'🔐', label:'App Lock', sub:'PIN / Biometric', action: null },
+      { icon:'🌐', label:'Language', value:'English', action: null },
+    ]},
+    { section:'Data', rows:[
+      { icon:'☁️', label:'Backup Data', action: null },
+      { icon:'📥', label:'Restore Data', action: null },
+      { icon:'📤', label:'Export CSV', action: null },
+    ]},
+    { section:'More', rows:[
+      { icon:'⭐', label:'Rate App', action: null },
+      { icon:'📋', label:'Privacy Policy', action: null },
+      { icon:'ℹ️', label:'App Version', value:'1.0.0', action: null },
+    ]},
+  ];
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', background:T.bg }}>
+      <div style={{ background:T.card, padding:'14px 16px 12px', borderBottom:`1px solid ${T.border}` }}>
+        <span style={{ fontSize:17, fontWeight:700, color:T.text }}>Settings</span>
+      </div>
+      <div className="screen-scroll" style={{ flex:1 }}>
+        {/* Profile card */}
+        <div style={{ padding:'16px 16px 0' }}>
+          <Card style={{ display:'flex', alignItems:'center', gap:14, marginBottom:16 }}>
+            <div style={{ width:56, height:56, borderRadius:18, background:`linear-gradient(135deg, ${T.primary}, oklch(0.45 0.18 200))`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, color:'#fff', fontWeight:700 }}>A</div>
+            <div>
+              <div style={{ fontSize:16, fontWeight:700, color:T.text }}>Alex Johnson</div>
+              <div style={{ fontSize:13, color:T.text2 }}>alex@email.com</div>
+            </div>
+            <button onClick={() => go('profile')} style={{ marginLeft:'auto', padding:'7px 12px', borderRadius:10, background:T.primary2, border:'none', cursor:'pointer', color:T.primary, fontWeight:600, fontSize:12, fontFamily:'DM Sans' }}>Edit</button>
+          </Card>
+        </div>
+
+        {items.map(sec => (
+          <div key={sec.section} style={{ padding:'0 16px 8px' }}>
+            <div style={{ fontSize:11, fontWeight:700, color:T.text3, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8, paddingLeft:4 }}>{sec.section}</div>
+            <Card style={{ padding:'4px 0', overflow:'hidden' }}>
+              {sec.rows.map((row, i) => (
+                <div key={row.label} onClick={row.action} style={{ display:'flex', alignItems:'center', gap:12, padding:'13px 16px',
+                  borderBottom: i < sec.rows.length-1 ? `1px solid ${T.border}` : 'none', cursor: row.action ? 'pointer' : 'default' }}>
+                  <div style={{ width:32, height:32, borderRadius:10, background:T.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>{row.icon}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:14, color:T.text }}>{row.label}</div>
+                    {row.sub && <div style={{ fontSize:11, color:T.text3 }}>{row.sub}</div>}
+                  </div>
+                  {row.toggle
+                    ? <div onClick={row.onToggle} style={{ width:44, height:24, borderRadius:12, background: row.val ? T.primary : T.border, cursor:'pointer', display:'flex', alignItems:'center', padding:3, transition:'background 0.2s' }}>
+                        <div style={{ width:18, height:18, borderRadius:9, background:'#fff', transition:'transform 0.2s', transform: row.val ? 'translateX(20px)' : 'translateX(0)' }}/>
+                      </div>
+                    : row.value
+                      ? <span style={{ fontSize:13, color:T.text2 }}>{row.value}</span>
+                      : row.action && <span style={{ color:T.text3, fontSize:16 }}>›</span>}
+                </div>
+              ))}
+            </Card>
+          </div>
+        ))}
+
+        <div style={{ padding:'8px 16px 16px' }}>
+          <Btn style={{ background:T.expense }} onClick={() => go('login')}>Sign Out</Btn>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// EMPTY STATE
+const EmptyState = ({ icon, title, sub, action, actionLabel }) => (
+  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14, padding:'60px 32px', textAlign:'center' }}>
+    <div style={{ fontSize:56 }}>{icon}</div>
+    <div style={{ fontSize:17, fontWeight:700, color:T.text }}>{title}</div>
+    <div style={{ fontSize:14, color:T.text2, lineHeight:1.6 }}>{sub}</div>
+    {action && <Btn onClick={action} style={{ maxWidth:200 }}>{actionLabel}</Btn>}
+  </div>
+);
+
+// ─── MAIN APP ─────────────────────────────────────────────────────
+const MAIN_SCREENS = ['dashboard','transactions','reports','budget','settings'];
+
+const App = () => {
+  const [screen, setScreen] = useState('splash');
+  const go = (s) => setScreen(s);
+  const showNav = MAIN_SCREENS.includes(screen);
+
+  const screenMap = {
+    splash:          <SplashScreen go={go} />,
+    onboarding:      <OnboardingScreen go={go} />,
+    login:           <LoginScreen go={go} />,
+    register:        <RegisterScreen go={go} />,
+    'forgot-password': <ForgotScreen go={go} />,
+    dashboard:       <DashboardScreen go={go} />,
+    'add-transaction': <AddTransactionScreen go={go} />,
+    transactions:    <TransactionListScreen go={go} />,
+    'tx-detail':     <TxDetailScreen go={go} />,
+    'edit-transaction': <EditTransactionScreen go={go} />,
+    categories:      <CategoriesScreen go={go} />,
+    'add-category':  <AddCategoryScreen go={go} />,
+    reports:         <ReportsScreen go={go} />,
+    budget:          <BudgetScreen go={go} />,
+    settings:        <SettingsScreen go={go} />,
+  };
+
+  return (
+    <AndroidDevice>
+      <div style={{ height:'100%', display:'flex', flexDirection:'column', background:T.bg, fontFamily:'DM Sans', overflow:'hidden' }}>
+        <div style={{ flex:1, minHeight:0 }}>
+          {screenMap[screen] || screenMap['dashboard']}
+        </div>
+        {showNav && <BottomNav active={screen} go={go} />}
+      </div>
+    </AndroidDevice>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
