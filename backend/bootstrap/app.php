@@ -1,10 +1,15 @@
 <?php
 
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,7 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
-            \Illuminate\Http\Middleware\HandleCors::class,
+            HandleCors::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -30,14 +35,28 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (Throwable $e, Request $request) {
-            if ($request->is('api/*')) {
-                $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
-
-                return response()->json([
-                    'success' => false,
-                    'message' => $status === 500 ? 'Something went wrong' : $e->getMessage(),
-                    'errors' => [],
-                ], $status);
+            if (! $request->is('api/*')) {
+                return null;
             }
+
+            [$status, $message] = match (true) {
+                $e instanceof AuthenticationException => [401, 'Unauthenticated.'],
+                $e instanceof AuthorizationException => [403, 'This action is unauthorized.'],
+                $e instanceof ModelNotFoundException => [404, 'Resource not found.'],
+                $e instanceof HttpExceptionInterface => [$e->getStatusCode(), $e->getMessage() ?: 'Request failed.'],
+                default => [500, null],
+            };
+
+            // Never leak internal error details or stack traces to API clients.
+            if ($status === 500) {
+                report($e);
+                $message = 'Something went wrong';
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => [],
+            ], $status);
         });
     })->create();

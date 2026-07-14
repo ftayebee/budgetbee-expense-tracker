@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\SavingsGoal;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -67,5 +68,29 @@ class DatabaseSeeder extends Seeder
             ]);
             $account->increment('current_balance', $type === 'income' ? $amount : -$amount);
         }
+
+        $emergency = SavingsGoal::create([
+            'user_id' => $user->id,
+            'account_id' => $bank->id,
+            'name' => 'Emergency Fund',
+            'target_amount' => 100000,
+            'current_amount' => 0,
+            'target_date' => now()->addMonths(10)->toDateString(),
+            'icon' => 'savings',
+            'color' => '#14b8a6',
+        ]);
+        $emergency->contributions()->create(['amount' => 15000, 'contributed_at' => now()->subMonth()->toDateString()]);
+        $emergency->contributions()->create(['amount' => 10000, 'contributed_at' => now()->subDays(5)->toDateString()]);
+        $emergency->update(['current_amount' => 25000]);
+
+        SavingsGoal::create([
+            'user_id' => $user->id,
+            'name' => 'New Laptop',
+            'target_amount' => 120000,
+            'current_amount' => 0,
+            'target_date' => now()->addMonths(6)->toDateString(),
+            'icon' => 'laptop',
+            'color' => '#6366f1',
+        ]);
     }
 }

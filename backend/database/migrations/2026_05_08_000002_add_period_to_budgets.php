@@ -8,15 +8,21 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Guarded so a fresh install (where the base migration already defines the
+        // column) does not fail with a duplicate-column error.
         Schema::table('budgets', function (Blueprint $table) {
-            $table->string('period', 16)->default('monthly')->after('amount');
+            if (! Schema::hasColumn('budgets', 'period')) {
+                $table->string('period', 16)->default('monthly')->after('amount');
+            }
         });
     }
 
     public function down(): void
     {
         Schema::table('budgets', function (Blueprint $table) {
-            $table->dropColumn('period');
+            if (Schema::hasColumn('budgets', 'period')) {
+                $table->dropColumn('period');
+            }
         });
     }
 };

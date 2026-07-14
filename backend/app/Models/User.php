@@ -69,4 +69,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Budget::class);
     }
+
+    public function savingsGoals()
+    {
+        return $this->hasMany(SavingsGoal::class);
+    }
 }
