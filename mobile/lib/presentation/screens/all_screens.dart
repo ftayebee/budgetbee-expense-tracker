@@ -13,6 +13,7 @@ import '../../data/models/transaction_model.dart';
 import '../../presentation/providers/app_providers.dart';
 import '../../presentation/widgets/app_widgets.dart';
 import '../../routes/app_routes.dart';
+import '../../features/analytics/presentation/premium_analytics_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -24,7 +25,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 1200), () async {
+    Future.microtask(() async {
       final ok = await context.read<AuthProvider>().checkSession();
       if (!mounted) return;
       Navigator.pushReplacementNamed(
@@ -35,55 +36,46 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
-    body: DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, Color(0xFF087F8C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _SplashIcon(),
-            SizedBox(height: 16),
-            Text(
-              'ExpenseTrack',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final logoWidth = (MediaQuery.sizeOf(context).width * .68)
+        .clamp(200.0, 300.0)
+        .toDouble();
+    return Scaffold(
+      backgroundColor: colors.surface,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 450),
+              tween: Tween(begin: .92, end: 1),
+              builder: (_, value, child) => Opacity(
+                opacity: value,
+                child: Transform.scale(scale: value, child: child),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppLogo(width: logoWidth),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Save Smarter',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 34),
+                  CircularProgressIndicator(color: colors.primary),
+                ],
               ),
             ),
-            SizedBox(height: 4),
-            Text(
-              'Smart Finance Manager',
-              style: TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-            SizedBox(height: 40),
-            _Dots(active: 0, color: Colors.white),
-          ],
+          ),
         ),
       ),
-    ),
-  );
-}
-
-class _SplashIcon extends StatelessWidget {
-  const _SplashIcon();
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 80,
-    height: 80,
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: .20),
-      borderRadius: BorderRadius.circular(24),
-    ),
-    child: const Center(child: Text('💸', style: TextStyle(fontSize: 40))),
-  );
+    );
+  }
 }
 
 class OnboardingScreen extends StatefulWidget {
@@ -120,48 +112,57 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: Column(
           children: [
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySoft,
-                        borderRadius: BorderRadius.circular(36),
-                      ),
-                      child: Center(
-                        child: Text(
-                          slide.$1,
-                          style: const TextStyle(fontSize: 60),
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  padding: const EdgeInsets.all(32),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 64,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const AppLogo(width: 155),
+                        const SizedBox(height: 22),
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: context.appPrimarySoft,
+                            borderRadius: BorderRadius.circular(36),
+                          ),
+                          child: Center(
+                            child: Text(
+                              slide.$1,
+                              style: TextStyle(fontSize: 60),
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 28),
+                        Text(
+                          slide.$2,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: context.appText,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          slide.$3,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.6,
+                            color: context.appMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        _Dots(active: step, color: AppColors.primary),
+                      ],
                     ),
-                    const SizedBox(height: 28),
-                    Text(
-                      slide.$2,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      slide.$3,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        height: 1.6,
-                        color: AppColors.muted,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    _Dots(active: step, color: AppColors.primary),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -237,18 +238,20 @@ class _LoginScreenState extends State<LoginScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
         children: [
-          const Text(
-            'Welcome back 👋',
+          const Center(child: AppLogo(width: 170)),
+          const SizedBox(height: 28),
+          Text(
+            'Welcome Back',
             style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w700,
-              color: AppColors.text,
+              color: context.appText,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Sign in to continue tracking',
-            style: TextStyle(fontSize: 14, color: AppColors.muted),
+            style: TextStyle(fontSize: 14, color: context.appMuted),
           ),
           const SizedBox(height: 28),
           Consumer<AuthProvider>(
@@ -276,14 +279,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextButton(
                     onPressed: () =>
                         Navigator.pushNamed(context, AppRoutes.forgotPassword),
-                    child: const Text('Forgot Password?'),
+                    child: Text('Forgot Password?'),
                   ),
                   if (auth.error != null)
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         auth.error!,
-                        style: const TextStyle(color: AppColors.expense),
+                        style: TextStyle(color: AppColors.expense),
                       ),
                     ),
                   const SizedBox(height: 10),
@@ -314,13 +317,13 @@ class _LoginScreenState extends State<LoginScreen> {
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const Text(
+                Text(
                   "Don't have an account? ",
-                  style: TextStyle(fontSize: 13, color: AppColors.muted),
+                  style: TextStyle(fontSize: 13, color: context.appMuted),
                 ),
                 GestureDetector(
                   onTap: () => Navigator.pushNamed(context, AppRoutes.register),
-                  child: const Text(
+                  child: Text(
                     'Sign Up',
                     style: TextStyle(
                       fontSize: 13,
@@ -368,15 +371,15 @@ class _DividerLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      const Expanded(child: Divider(color: AppColors.border)),
+      Expanded(child: Divider(color: context.appBorder)),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Text(
           label,
-          style: const TextStyle(fontSize: 12, color: AppColors.faint),
+          style: TextStyle(fontSize: 12, color: context.appFaint),
         ),
       ),
-      const Expanded(child: Divider(color: AppColors.border)),
+      Expanded(child: Divider(color: context.appBorder)),
     ],
   );
 }
@@ -406,9 +409,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            const Text(
+            const Center(child: AppLogo(width: 160)),
+            const SizedBox(height: 24),
+            Text(
+              'Create Your Account',
+              style: TextStyle(
+                fontSize: 23,
+                fontWeight: FontWeight.w700,
+                color: context.appText,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
               'Fill in your details to get started',
-              style: TextStyle(fontSize: 14, color: AppColors.muted),
+              style: TextStyle(fontSize: 14, color: context.appMuted),
             ),
             const SizedBox(height: 16),
             PrototypeInput(
@@ -448,10 +462,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.primarySoft,
+                color: context.appPrimarySoft,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text(
+              child: Text(
                 'By registering, you agree to our Terms of Service and Privacy Policy',
                 style: TextStyle(
                   fontSize: 12,
@@ -462,10 +476,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 16),
             if (auth.error != null)
-              Text(
-                auth.error!,
-                style: const TextStyle(color: AppColors.expense),
-              ),
+              Text(auth.error!, style: TextStyle(color: AppColors.expense)),
             PrototypeButton(
               label: auth.loading ? 'Creating...' : 'Create Account',
               onPressed: auth.loading
@@ -489,7 +500,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Center(
               child: GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: const Text(
+                child: Text(
                   'Already have an account? Sign In',
                   style: TextStyle(
                     fontSize: 13,
@@ -515,6 +526,39 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final email = TextEditingController();
   bool sent = false;
+  bool submitting = false;
+
+  @override
+  void dispose() {
+    email.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final address = email.text.trim();
+    if (address.isEmpty || !address.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
+      return;
+    }
+    setState(() => submitting = true);
+    final ok = await context.read<AuthProvider>().forgotPassword(address);
+    if (!mounted) return;
+    setState(() => submitting = false);
+    if (ok) {
+      setState(() => sent = true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.read<AuthProvider>().error ??
+                'Could not send the reset link. Please try again.',
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -531,8 +575,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 Container(
                   width: 80,
                   height: 80,
-                  decoration: const BoxDecoration(
-                    color: AppColors.incomeSoft,
+                  decoration: BoxDecoration(
+                    color: context.appIncomeSoft,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -542,18 +586,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'Email Sent!',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 10),
-                const Text(
+                Text(
                   'Check your inbox for the password reset link. It expires in 30 minutes.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.6,
-                    color: AppColors.muted,
+                    color: context.appMuted,
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -566,17 +610,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Reset your password',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   "Enter your email and we'll send a reset link to your inbox.",
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.6,
-                    color: AppColors.muted,
+                    color: context.appMuted,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -588,8 +632,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 24),
                 PrototypeButton(
-                  label: 'Send Reset Link',
-                  onPressed: () => setState(() => sent = true),
+                  label: submitting ? 'Sending…' : 'Send Reset Link',
+                  onPressed: submitting ? null : _submit,
                 ),
               ],
             ),
@@ -660,7 +704,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           label: 'Income',
                           value: d.totalIncome,
                           color: AppColors.income,
-                          soft: AppColors.incomeSoft,
+                          soft: context.appIncomeSoft,
                           icon: Icons.arrow_upward,
                         ),
                       ),
@@ -670,7 +714,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           label: 'Expenses',
                           value: d.totalExpense,
                           color: AppColors.expense,
-                          soft: AppColors.expenseSoft,
+                          soft: context.appExpenseSoft,
                           icon: Icons.arrow_downward,
                         ),
                       ),
@@ -729,7 +773,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           context,
                           AppRoutes.transactions,
                         ),
-                        child: const Text('See all'),
+                        child: Text('See all'),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -773,7 +817,7 @@ class _DashboardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.fromLTRB(20, 20, 20, 52),
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       gradient: LinearGradient(
         colors: [AppColors.primary, AppColors.primaryDark],
         begin: Alignment.topLeft,
@@ -790,13 +834,13 @@ class _DashboardHeader extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Good morning 👋',
                     style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                   Text(
                     userName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -818,14 +862,14 @@ class _DashboardHeader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Total Balance',
             style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 4),
           Text(
             CurrencyFormatter.format(balance),
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontSize: 38,
               fontWeight: FontWeight.w700,
@@ -834,7 +878,7 @@ class _DashboardHeader extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             DateFormatter.display(DateTime.now()),
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
+            style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
         ],
       ),
@@ -879,7 +923,7 @@ class _FloatingSummary extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     decoration: BoxDecoration(
-      color: AppColors.card,
+      color: context.appCard,
       borderRadius: BorderRadius.circular(18),
       boxShadow: const [
         BoxShadow(
@@ -906,9 +950,9 @@ class _FloatingSummary extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppColors.muted,
+                color: context.appMuted,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -949,7 +993,7 @@ class _MonthlyOverview extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
+            children: [
               Text(
                 'Monthly Overview',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
@@ -958,7 +1002,7 @@ class _MonthlyOverview extends StatelessWidget {
               PrototypeTag(
                 label: 'This Year',
                 color: AppColors.primary,
-                background: AppColors.primarySoft,
+                background: context.appPrimarySoft,
               ),
             ],
           ),
@@ -992,10 +1036,7 @@ class _MonthlyOverview extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         d.$1,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.faint,
-                        ),
+                        style: TextStyle(fontSize: 10, color: context.appFaint),
                       ),
                     ],
                   ),
@@ -1048,7 +1089,7 @@ class _Legend extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 5),
-      Text(label, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+      Text(label, style: TextStyle(fontSize: 11, color: context.appMuted)),
     ],
   );
 }
@@ -1063,14 +1104,14 @@ class _SavingsCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Text(
+            Text(
               'Savings Rate',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
             const Spacer(),
             Text(
               '${(rate * 100).round()}%',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: AppColors.income,
@@ -1084,7 +1125,7 @@ class _SavingsCard extends StatelessWidget {
           child: LinearProgressIndicator(
             value: rate,
             minHeight: 8,
-            backgroundColor: AppColors.border,
+            backgroundColor: context.appBorder,
             valueColor: const AlwaysStoppedAnimation(AppColors.income),
           ),
         ),
@@ -1093,7 +1134,7 @@ class _SavingsCard extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: Text(
             'You saved ${CurrencyFormatter.format(saved)} this month 🎉',
-            style: const TextStyle(fontSize: 12, color: AppColors.muted),
+            style: TextStyle(fontSize: 12, color: context.appMuted),
           ),
         ),
       ],
@@ -1128,23 +1169,24 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       active: AppRoutes.transactions,
     ),
     body: SafeArea(
+      bottom: false,
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-            decoration: const BoxDecoration(
-              color: AppColors.card,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
+            decoration: BoxDecoration(
+              color: context.appCard,
+              border: Border(bottom: BorderSide(color: context.appBorder)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Transactions',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.text,
+                    color: context.appText,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1233,7 +1275,7 @@ class _FilterChip extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: selected ? AppColors.primary : AppColors.border,
+        color: selected ? AppColors.primary : context.appBorder,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -1241,7 +1283,7 @@ class _FilterChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: selected ? Colors.white : AppColors.muted,
+          color: selected ? Colors.white : context.appMuted,
         ),
       ),
     ),
@@ -1259,16 +1301,16 @@ class _OutlinePill extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: context.appCard,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border, width: 1.5),
+        border: Border.all(color: context.appBorder, width: 1.5),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: AppColors.muted,
+          color: context.appMuted,
         ),
       ),
     ),
@@ -1347,19 +1389,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   ),
                   child: Column(
                     children: [
-                      const Text(
+                      Text(
                         'Amount',
-                        style: TextStyle(fontSize: 13, color: AppColors.muted),
+                        style: TextStyle(fontSize: 13, color: context.appMuted),
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
+                          Text(
                             '৳',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w300,
-                              color: AppColors.muted,
+                              color: context.appMuted,
                             ),
                           ),
                           SizedBox(
@@ -1468,18 +1510,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.background,
+                    color: context.appBackground,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: AppColors.border,
+                      color: context.appBorder,
                       width: 1.5,
                       style: BorderStyle.solid,
                     ),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Text(
                       '📎 Attach Receipt (optional)',
-                      style: TextStyle(fontSize: 14, color: AppColors.muted),
+                      style: TextStyle(fontSize: 14, color: context.appMuted),
                     ),
                   ),
                 ),
@@ -1487,7 +1529,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 if (txState.error != null)
                   Text(
                     txState.error!,
-                    style: const TextStyle(color: AppColors.expense),
+                    style: TextStyle(color: AppColors.expense),
                   ),
                 PrototypeButton(
                   label: 'Save Transaction',
@@ -1534,7 +1576,7 @@ class _TypeToggle extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
-      color: AppColors.border,
+      color: context.appBorder,
       borderRadius: BorderRadius.circular(14),
     ),
     child: Row(
@@ -1558,7 +1600,7 @@ class _TypeToggle extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : AppColors.muted,
+                  color: selected ? Colors.white : context.appMuted,
                 ),
               ),
             ),
@@ -1579,10 +1621,10 @@ class _ChipSection extends StatelessWidget {
     children: [
       Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: AppColors.muted,
+          color: context.appMuted,
         ),
       ),
       const SizedBox(height: 8),
@@ -1609,10 +1651,10 @@ class _SelectablePill extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: selected ? AppColors.primarySoft : AppColors.card,
+        color: selected ? context.appPrimarySoft : context.appCard,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: selected ? AppColors.primary : AppColors.border,
+          color: selected ? AppColors.primary : context.appBorder,
           width: 1.5,
         ),
       ),
@@ -1626,7 +1668,7 @@ class _SelectablePill extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: selected ? AppColors.primary : AppColors.muted,
+              color: selected ? AppColors.primary : context.appMuted,
             ),
           ),
         ],
@@ -1652,10 +1694,10 @@ class _MethodPill extends StatelessWidget {
       width: 78,
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
-        color: selected ? AppColors.primarySoft : AppColors.card,
+        color: selected ? context.appPrimarySoft : context.appCard,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: selected ? AppColors.primary : AppColors.border,
+          color: selected ? AppColors.primary : context.appBorder,
           width: 1.5,
         ),
       ),
@@ -1665,7 +1707,7 @@ class _MethodPill extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: selected ? AppColors.primary : AppColors.muted,
+          color: selected ? AppColors.primary : context.appMuted,
         ),
       ),
     ),
@@ -1688,7 +1730,7 @@ class TransactionDetailsScreen extends StatelessWidget {
             AppRoutes.editTransaction,
             arguments: tx,
           ),
-          child: const Text('Edit'),
+          child: Text('Edit'),
         ),
       ),
       body: ListView(
@@ -1702,21 +1744,21 @@ class TransactionDetailsScreen extends StatelessWidget {
                   height: 64,
                   decoration: BoxDecoration(
                     color: isIncome
-                        ? AppColors.incomeSoft
-                        : AppColors.expenseSoft,
+                        ? context.appIncomeSoft
+                        : context.appExpenseSoft,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Center(
                     child: Text(
                       iconForTransaction(tx),
-                      style: const TextStyle(fontSize: 32),
+                      style: TextStyle(fontSize: 32),
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   isIncome ? 'Income' : 'Expense',
-                  style: const TextStyle(fontSize: 13, color: AppColors.muted),
+                  style: TextStyle(fontSize: 13, color: context.appMuted),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -1730,10 +1772,10 @@ class TransactionDetailsScreen extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   tx.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.text,
+                    color: context.appText,
                   ),
                 ),
               ],
@@ -1780,18 +1822,18 @@ class TransactionDetailsScreen extends StatelessWidget {
                     final ok = await showDialog<bool>(
                       context: context,
                       builder: (_) => AlertDialog(
-                        title: const Text('Delete transaction?'),
-                        content: const Text(
+                        title: Text('Delete transaction?'),
+                        content: Text(
                           'This will reverse the account balance effect.',
                         ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
+                            child: Text('Cancel'),
                           ),
                           FilledButton(
                             onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Delete'),
+                            child: Text('Delete'),
                           ),
                         ],
                       ),
@@ -1819,24 +1861,21 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(vertical: 10),
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: AppColors.border)),
+    decoration: BoxDecoration(
+      border: Border(bottom: BorderSide(color: context.appBorder)),
     ),
     child: Row(
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, color: AppColors.muted),
-        ),
+        Text(label, style: TextStyle(fontSize: 13, color: context.appMuted)),
         const Spacer(),
         Flexible(
           child: Text(
             value,
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.text,
+              color: context.appText,
             ),
           ),
         ),
@@ -1985,15 +2024,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         children: [
           Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-            decoration: const BoxDecoration(
-              color: AppColors.card,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
+            decoration: BoxDecoration(
+              color: context.appCard,
+              border: Border(bottom: BorderSide(color: context.appBorder)),
             ),
             child: Column(
               children: [
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'Categories',
                       style: TextStyle(
                         fontSize: 17,
@@ -2021,7 +2060,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 Container(
                   padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
-                    color: AppColors.border,
+                    color: context.appBorder,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -2035,7 +2074,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                             padding: const EdgeInsets.all(9),
                             decoration: BoxDecoration(
                               color: selected
-                                  ? AppColors.card
+                                  ? context.appCard
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: selected
@@ -2055,8 +2094,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: selected
-                                    ? AppColors.text
-                                    : AppColors.muted,
+                                    ? context.appText
+                                    : context.appMuted,
                               ),
                             ),
                           ),
@@ -2116,7 +2155,7 @@ class _CategoryCard extends StatelessWidget {
             child: Center(
               child: Text(
                 iconForCategory(category),
-                style: const TextStyle(fontSize: 22),
+                style: TextStyle(fontSize: 22),
               ),
             ),
           ),
@@ -2127,27 +2166,24 @@ class _CategoryCard extends StatelessWidget {
               children: [
                 Text(
                   category.name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
                 if (tab == 'expense')
-                  const Text(
+                  Text(
                     'Budget: set monthly limit',
-                    style: TextStyle(fontSize: 12, color: AppColors.muted),
+                    style: TextStyle(fontSize: 12, color: context.appMuted),
                   ),
               ],
             ),
           ),
           _MiniIcon(
-            color: AppColors.primarySoft,
+            color: context.appPrimarySoft,
             icon: Icons.edit,
             iconColor: AppColors.primary,
           ),
           const SizedBox(width: 8),
           _MiniIcon(
-            color: AppColors.expenseSoft,
+            color: context.appExpenseSoft,
             icon: Icons.delete_outline,
             iconColor: AppColors.expense,
           ),
@@ -2239,10 +2275,7 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Center(
-                  child: Text(
-                    selectedIcon,
-                    style: const TextStyle(fontSize: 40),
-                  ),
+                  child: Text(selectedIcon, style: TextStyle(fontSize: 40)),
                 ),
               ),
             ),
@@ -2267,18 +2300,18 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
                         height: 44,
                         decoration: BoxDecoration(
                           color: selectedIcon == ic
-                              ? AppColors.primarySoft
-                              : AppColors.card,
+                              ? context.appPrimarySoft
+                              : context.appCard,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: selectedIcon == ic
                                 ? AppColors.primary
-                                : AppColors.border,
+                                : context.appBorder,
                             width: 2,
                           ),
                         ),
                         child: Center(
-                          child: Text(ic, style: const TextStyle(fontSize: 22)),
+                          child: Text(ic, style: TextStyle(fontSize: 22)),
                         ),
                       ),
                     ),
@@ -2301,7 +2334,7 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: selectedColor == c
-                                ? AppColors.text
+                                ? context.appText
                                 : Colors.transparent,
                             width: 3,
                           ),
@@ -2380,18 +2413,18 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         children: [
           Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-            decoration: const BoxDecoration(
-              color: AppColors.card,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
+            decoration: BoxDecoration(
+              color: context.appCard,
+              border: Border(bottom: BorderSide(color: context.appBorder)),
             ),
             child: Row(
               children: [
-                const Text(
+                Text(
                   'Budget',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.text,
+                    color: context.appText,
                   ),
                 ),
                 const Spacer(),
@@ -2431,7 +2464,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Monthly Budget',
                             style: TextStyle(
                               color: Colors.white70,
@@ -2444,7 +2477,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                             children: [
                               Text(
                                 CurrencyFormatter.format(totalBudget),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 28,
                                   fontWeight: FontWeight.w700,
@@ -2454,7 +2487,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Spent',
                                     style: TextStyle(
                                       color: Colors.white70,
@@ -2463,7 +2496,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   ),
                                   Text(
                                     CurrencyFormatter.format(totalSpent),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -2489,7 +2522,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                             children: [
                               Text(
                                 '${(pct * 100).round()}% used',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
                                 ),
@@ -2497,7 +2530,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                               const Spacer(),
                               Text(
                                 '${CurrencyFormatter.format(totalBudget - totalSpent)} remaining',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -2509,12 +2542,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text(
+                    Text(
                       'Category Budgets',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.text,
+                        color: context.appText,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -2556,7 +2589,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                           b.category == null
                                               ? '🏷'
                                               : iconForCategory(b.category!),
-                                          style: const TextStyle(fontSize: 18),
+                                          style: TextStyle(fontSize: 18),
                                         ),
                                       ),
                                     ),
@@ -2570,26 +2603,26 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                             children: [
                                               Text(
                                                 b.category?.name ?? 'Budget',
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                               const Spacer(),
                                               if (over)
-                                                const PrototypeTag(
+                                                PrototypeTag(
                                                   label: 'Over!',
                                                   color: AppColors.expense,
                                                   background:
-                                                      AppColors.expenseSoft,
+                                                      context.appExpenseSoft,
                                                 ),
                                             ],
                                           ),
                                           Text(
                                             '${CurrencyFormatter.format(b.spent)} / ${CurrencyFormatter.format(b.amount)}',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 11,
-                                              color: AppColors.muted,
+                                              color: context.appMuted,
                                             ),
                                           ),
                                         ],
@@ -2603,7 +2636,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   child: LinearProgressIndicator(
                                     value: progress,
                                     minHeight: 6,
-                                    backgroundColor: AppColors.border,
+                                    backgroundColor: context.appBorder,
                                     valueColor: AlwaysStoppedAnimation(
                                       over ? AppColors.expense : color,
                                     ),
@@ -2614,9 +2647,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   children: [
                                     Text(
                                       '${(progress * 100).round()}% used',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 11,
-                                        color: AppColors.muted,
+                                        color: context.appMuted,
                                       ),
                                     ),
                                     const Spacer(),
@@ -2747,13 +2780,20 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   );
 }
 
-class ReportsScreen extends StatefulWidget {
+class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
+
   @override
-  State<ReportsScreen> createState() => _ReportsScreenState();
+  Widget build(BuildContext context) => const PremiumAnalyticsScreen();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> {
+class _LegacyReportsScreen extends StatefulWidget {
+  const _LegacyReportsScreen();
+  @override
+  State<_LegacyReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends State<_LegacyReportsScreen> {
   @override
   void initState() {
     super.initState();
@@ -2767,19 +2807,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget build(BuildContext context) => Scaffold(
     bottomNavigationBar: const PrototypeBottomNav(active: AppRoutes.reports),
     body: SafeArea(
+      bottom: false,
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-            decoration: const BoxDecoration(
-              color: AppColors.card,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
+            decoration: BoxDecoration(
+              color: context.appCard,
+              border: Border(bottom: BorderSide(color: context.appBorder)),
             ),
             child: Column(
               children: [
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'Reports',
                       style: TextStyle(
                         fontSize: 17,
@@ -2792,7 +2833,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
                 const SizedBox(height: 10),
                 Row(
-                  children: const [
+                  children: [
                     _RangePill(label: 'This Month', selected: true),
                     SizedBox(width: 6),
                     _RangePill(label: '3 Months'),
@@ -2850,7 +2891,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Expense Breakdown',
                             style: TextStyle(
                               fontSize: 14,
@@ -2868,7 +2909,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                     sectionsSpace: 0,
                                     centerSpaceRadius: 38,
                                     sections: _pieSections(catRows),
-                                    centerSpaceColor: AppColors.card,
+                                    centerSpaceColor: context.appCard,
                                   ),
                                 ),
                               ),
@@ -2886,7 +2927,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Income vs Expense',
                             style: TextStyle(
                               fontSize: 14,
@@ -2923,7 +2964,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   'Net Profit / Saving',
                                   style: TextStyle(
                                     fontSize: 12,
@@ -2933,7 +2974,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                   '${net >= 0 ? '+' : '-'}${CurrencyFormatter.format(net.abs())}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 28,
                                     fontWeight: FontWeight.w700,
@@ -2944,7 +2985,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   income <= 0
                                       ? 'No income this month'
                                       : '${((net / income) * 100).round()}% savings rate 🎉',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.white70,
                                   ),
@@ -2952,7 +2993,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               ],
                             ),
                           ),
-                          const Text('📈', style: TextStyle(fontSize: 48)),
+                          Text('📈', style: TextStyle(fontSize: 48)),
                         ],
                       ),
                     ),
@@ -2973,13 +3014,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       AppColors.warning,
       AppColors.categoryBlue,
       AppColors.expense,
-      AppColors.faint,
+      context.appFaint,
     ];
     if (rows.isEmpty)
       return [
         PieChartSectionData(
           value: 1,
-          color: AppColors.border,
+          color: context.appBorder,
           showTitle: false,
           radius: 20,
         ),
@@ -3002,13 +3043,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       AppColors.warning,
       AppColors.categoryBlue,
       AppColors.expense,
-      AppColors.faint,
+      context.appFaint,
     ];
     if (rows.isEmpty)
       return [
-        const Text(
+        Text(
           'No category data',
-          style: TextStyle(fontSize: 11, color: AppColors.muted),
+          style: TextStyle(fontSize: 11, color: context.appMuted),
         ),
       ];
     return List.generate(rows.length.clamp(0, 6), (i) {
@@ -3029,12 +3070,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
             Expanded(
               child: Text(
                 row['category']?['name']?.toString() ?? 'Category',
-                style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                style: TextStyle(fontSize: 11, color: context.appMuted),
               ),
             ),
             Text(
               CurrencyFormatter.format(double.tryParse('${row['total']}') ?? 0),
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -3051,7 +3092,7 @@ class _RangePill extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
     decoration: BoxDecoration(
-      color: selected ? AppColors.primary : AppColors.border,
+      color: selected ? AppColors.primary : context.appBorder,
       borderRadius: BorderRadius.circular(20),
     ),
     child: Text(
@@ -3059,7 +3100,7 @@ class _RangePill extends StatelessWidget {
       style: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w600,
-        color: selected ? Colors.white : AppColors.muted,
+        color: selected ? Colors.white : context.appMuted,
       ),
     ),
   );
@@ -3081,10 +3122,7 @@ class _ReportBar extends StatelessWidget {
     children: [
       Row(
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: AppColors.muted),
-          ),
+          Text(label, style: TextStyle(fontSize: 12, color: context.appMuted)),
           const Spacer(),
           Text(
             CurrencyFormatter.format(value),
@@ -3102,7 +3140,7 @@ class _ReportBar extends StatelessWidget {
         child: LinearProgressIndicator(
           value: max <= 0 ? 0 : value / max,
           minHeight: 8,
-          backgroundColor: AppColors.border,
+          backgroundColor: context.appBorder,
           valueColor: AlwaysStoppedAnimation(color),
         ),
       ),
@@ -3130,7 +3168,7 @@ class ProfileScreen extends StatelessWidget {
                   Container(
                     width: 56,
                     height: 56,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [AppColors.primary, AppColors.primaryDark],
                       ),
@@ -3140,7 +3178,7 @@ class ProfileScreen extends StatelessWidget {
                       child: Text(
                         (user?.name.isNotEmpty == true ? user!.name[0] : 'A')
                             .toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 28,
                           fontWeight: FontWeight.w700,
@@ -3155,16 +3193,16 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         Text(
                           user?.name ?? 'Alex Johnson',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         Text(
                           user?.email ?? 'alex@email.com',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.muted,
+                            color: context.appMuted,
                           ),
                         ),
                       ],
@@ -3224,7 +3262,7 @@ class ProfileScreen extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Change Password'),
+        title: Text('Change Password'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3250,7 +3288,7 @@ class ProfileScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'),
           ),
           FilledButton(
             onPressed: () async {
@@ -3261,7 +3299,7 @@ class ProfileScreen extends StatelessWidget {
               });
               if (context.mounted && ok) Navigator.pop(context);
             },
-            child: const Text('Save'),
+            child: Text('Save'),
           ),
         ],
       ),
@@ -3329,10 +3367,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 18),
             if (auth.error != null)
-              Text(
-                auth.error!,
-                style: const TextStyle(color: AppColors.expense),
-              ),
+              Text(auth.error!, style: TextStyle(color: AppColors.expense)),
             PrototypeButton(
               label: auth.loading ? 'Saving...' : 'Save Profile',
               onPressed: auth.loading
@@ -3367,6 +3402,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) => Scaffold(
     bottomNavigationBar: const PrototypeBottomNav(active: AppRoutes.settings),
     body: SafeArea(
+      bottom: false,
       child: Consumer<AuthProvider>(
         builder: (_, auth, __) {
           final user = auth.user;
@@ -3374,11 +3410,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                decoration: const BoxDecoration(
-                  color: AppColors.card,
-                  border: Border(bottom: BorderSide(color: AppColors.border)),
+                decoration: BoxDecoration(
+                  color: context.appCard,
+                  border: Border(bottom: BorderSide(color: context.appBorder)),
                 ),
-                child: const Text(
+                child: Text(
                   'Settings',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                 ),
@@ -3391,7 +3427,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Container(
                         width: 56,
                         height: 56,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [AppColors.primary, AppColors.primaryDark],
                           ),
@@ -3403,7 +3439,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ? user!.name[0]
                                     : 'A')
                                 .toUpperCase(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
                               fontSize: 28,
                               fontWeight: FontWeight.w700,
@@ -3418,16 +3454,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           children: [
                             Text(
                               user?.name ?? 'Alex Johnson',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                             Text(
                               user?.email ?? 'alex@email.com',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.muted,
+                                color: context.appMuted,
                               ),
                             ),
                           ],
@@ -3493,6 +3529,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     label: 'Budgets',
                     onTap: () =>
                         Navigator.pushNamed(context, AppRoutes.budgets),
+                  ),
+                  _SettingsRow(
+                    icon: '🐷',
+                    label: 'Savings Goals',
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.goals),
                   ),
                   _SettingsRow(
                     icon: '💳',
@@ -3585,8 +3626,8 @@ class _SettingsRow extends StatelessWidget {
     onTap: onTap,
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: context.appBorder)),
       ),
       child: Row(
         children: [
@@ -3594,12 +3635,10 @@ class _SettingsRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: context.appBackground,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Center(
-              child: Text(icon, style: const TextStyle(fontSize: 16)),
-            ),
+            child: Center(child: Text(icon, style: TextStyle(fontSize: 16))),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -3608,15 +3647,12 @@ class _SettingsRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 14, color: AppColors.text),
+                  style: TextStyle(fontSize: 14, color: context.appText),
                 ),
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.faint,
-                    ),
+                    style: TextStyle(fontSize: 11, color: context.appFaint),
                   ),
               ],
             ),
@@ -3626,13 +3662,10 @@ class _SettingsRow extends StatelessWidget {
           else if (value != null)
             Text(
               value!,
-              style: const TextStyle(fontSize: 13, color: AppColors.muted),
+              style: TextStyle(fontSize: 13, color: context.appMuted),
             )
           else if (onTap != null)
-            const Text(
-              '›',
-              style: TextStyle(fontSize: 18, color: AppColors.faint),
-            ),
+            Text('›', style: TextStyle(fontSize: 18, color: context.appFaint)),
         ],
       ),
     ),
@@ -3653,7 +3686,7 @@ class _Toggle extends StatelessWidget {
       height: 24,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: value ? AppColors.primary : AppColors.border,
+        color: value ? AppColors.primary : context.appBorder,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Align(
@@ -3661,7 +3694,7 @@ class _Toggle extends StatelessWidget {
         child: Container(
           width: 18,
           height: 18,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
           ),

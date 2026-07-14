@@ -33,7 +33,7 @@ class SafeProfileScreen extends StatelessWidget {
                     Container(
                       width: 56,
                       height: 56,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [AppColors.primary, AppColors.primaryDark],
                         ),
@@ -43,7 +43,7 @@ class SafeProfileScreen extends StatelessWidget {
                         child: Text(
                           (user?.name.isNotEmpty == true ? user!.name[0] : 'A')
                               .toUpperCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
@@ -58,16 +58,16 @@ class SafeProfileScreen extends StatelessWidget {
                         children: [
                           Text(
                             user?.name ?? 'Alex Johnson',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                           Text(
                             user?.email ?? 'alex@email.com',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: AppColors.muted,
+                              color: context.appMuted,
                             ),
                           ),
                         ],
@@ -200,10 +200,7 @@ class _SafeEditProfileScreenState extends State<SafeEditProfileScreen> {
               ),
               const SizedBox(height: 18),
               if (auth.error != null)
-                Text(
-                  auth.error!,
-                  style: const TextStyle(color: AppColors.expense),
-                ),
+                Text(auth.error!, style: TextStyle(color: AppColors.expense)),
               PrototypeButton(
                 label: auth.loading ? 'Saving...' : 'Save Profile',
                 onPressed: auth.loading
@@ -237,6 +234,7 @@ class SafeSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     bottomNavigationBar: const PrototypeBottomNav(active: AppRoutes.settings),
     body: SafeArea(
+      bottom: false,
       child: Consumer3<AuthProvider, AppSettingsController, AppLockService>(
         builder: (_, auth, settings, lock, __) {
           final user = auth.user;
@@ -244,13 +242,48 @@ class SafeSettingsScreen extends StatelessWidget {
             children: [
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                decoration: const BoxDecoration(
-                  color: AppColors.card,
-                  border: Border(bottom: BorderSide(color: AppColors.border)),
+                decoration: BoxDecoration(
+                  color: context.appCard,
+                  border: Border(bottom: BorderSide(color: context.appBorder)),
                 ),
-                child: const Text(
+                child: Text(
                   'Settings',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: PrototypeCard(
+                  child: Row(
+                    children: [
+                      const AppLogo(width: 130),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Version 1.0.0',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: context.appText,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Save smarter with clear financial insights.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.35,
+                                color: context.appMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               Padding(
@@ -261,7 +294,7 @@ class SafeSettingsScreen extends StatelessWidget {
                       Container(
                         width: 56,
                         height: 56,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [AppColors.primary, AppColors.primaryDark],
                           ),
@@ -273,7 +306,7 @@ class SafeSettingsScreen extends StatelessWidget {
                                     ? user!.name[0]
                                     : 'A')
                                 .toUpperCase(),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
                               fontSize: 28,
                               fontWeight: FontWeight.w700,
@@ -288,16 +321,16 @@ class SafeSettingsScreen extends StatelessWidget {
                           children: [
                             Text(
                               user?.name ?? 'Alex Johnson',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                             Text(
                               user?.email ?? 'alex@email.com',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.muted,
+                                color: context.appMuted,
                               ),
                             ),
                           ],
@@ -365,6 +398,12 @@ class SafeSettingsScreen extends StatelessWidget {
                       MaterialPageRoute(builder: (_) => const PinSetupScreen()),
                     ),
                   ),
+                  _SettingsRow(
+                    icon: '⏱',
+                    label: 'Lock timeout',
+                    value: _lockTimeoutLabel(lock.lockTimeout),
+                    onTap: () => _chooseLockTimeout(context),
+                  ),
                   const _SettingsRow(
                     icon: '🌐',
                     label: 'Language',
@@ -396,12 +435,17 @@ class SafeSettingsScreen extends StatelessWidget {
                   const _SettingsRow(icon: '📤', label: 'Export CSV'),
                 ],
               ),
-              const _SettingsSection(
+              _SettingsSection(
                 title: 'More',
                 rows: [
-                  _SettingsRow(icon: '⭐', label: 'Rate App'),
-                  _SettingsRow(icon: '📋', label: 'Privacy Policy'),
+                  const _SettingsRow(icon: '⭐', label: 'Rate App'),
                   _SettingsRow(
+                    icon: 'ℹ️',
+                    label: 'About BudgetBee',
+                    onTap: () => Navigator.pushNamed(context, AppRoutes.about),
+                  ),
+                  const _SettingsRow(icon: '📋', label: 'Privacy Policy'),
+                  const _SettingsRow(
                     icon: 'ℹ️',
                     label: 'App Version',
                     value: '1.0.0',
@@ -436,6 +480,43 @@ class SafeSettingsScreen extends StatelessWidget {
     AppThemeMode.light => 'Light',
     AppThemeMode.dark => 'Dark',
   };
+
+  static String _lockTimeoutLabel(Duration timeout) =>
+      switch (timeout.inSeconds) {
+        0 => 'Immediately',
+        30 => '30 seconds',
+        60 => '1 minute',
+        300 => '5 minutes',
+        _ => '${timeout.inMinutes} minutes',
+      };
+
+  static Future<void> _chooseLockTimeout(BuildContext context) async {
+    const options = [
+      Duration.zero,
+      Duration(seconds: 30),
+      Duration(minutes: 1),
+      Duration(minutes: 5),
+    ];
+    final selected = await showModalBottomSheet<Duration>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: options
+              .map(
+                (timeout) => ListTile(
+                  title: Text(_lockTimeoutLabel(timeout)),
+                  onTap: () => Navigator.pop(sheetContext, timeout),
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+    if (selected != null && context.mounted) {
+      await context.read<AppLockService>().setLockTimeout(selected);
+    }
+  }
 
   static Future<void> _chooseTheme(BuildContext context) async {
     final controller = context.read<AppSettingsController>();
@@ -569,8 +650,8 @@ class _SettingsRow extends StatelessWidget {
     onTap: onTap,
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: context.appBorder)),
       ),
       child: Row(
         children: [
@@ -578,12 +659,10 @@ class _SettingsRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: context.appBackground,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Center(
-              child: Text(icon, style: const TextStyle(fontSize: 16)),
-            ),
+            child: Center(child: Text(icon, style: TextStyle(fontSize: 16))),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -592,15 +671,12 @@ class _SettingsRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 14, color: AppColors.text),
+                  style: TextStyle(fontSize: 14, color: context.appText),
                 ),
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.faint,
-                    ),
+                    style: TextStyle(fontSize: 11, color: context.appFaint),
                   ),
               ],
             ),
@@ -610,13 +686,10 @@ class _SettingsRow extends StatelessWidget {
           else if (value != null)
             Text(
               value!,
-              style: const TextStyle(fontSize: 13, color: AppColors.muted),
+              style: TextStyle(fontSize: 13, color: context.appMuted),
             )
           else if (onTap != null)
-            const Text(
-              '›',
-              style: TextStyle(fontSize: 18, color: AppColors.faint),
-            ),
+            Text('›', style: TextStyle(fontSize: 18, color: context.appFaint)),
         ],
       ),
     ),
@@ -638,7 +711,7 @@ class _Toggle extends StatelessWidget {
       height: 26,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: value ? AppColors.primary : AppColors.border,
+        color: value ? AppColors.primary : context.appBorder,
         borderRadius: BorderRadius.circular(13),
       ),
       child: Align(
@@ -646,7 +719,7 @@ class _Toggle extends StatelessWidget {
         child: Container(
           width: 20,
           height: 20,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
           ),

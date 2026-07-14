@@ -3,8 +3,10 @@ import '../models/account_model.dart';
 import '../models/budget_model.dart';
 import '../models/category_model.dart';
 import '../models/dashboard_model.dart';
+import '../models/savings_goal_model.dart';
 import '../models/transaction_model.dart';
 import '../models/user_model.dart';
+import '../../features/analytics/domain/analytics_models.dart';
 
 class Repositories {
   Repositories(ApiClient client)
@@ -14,6 +16,7 @@ class Repositories {
       categories = CategoryRepository(client),
       transactions = TransactionRepository(client),
       budgets = BudgetRepository(client),
+      savingsGoals = SavingsGoalRepository(client),
       reports = ReportRepository(client);
 
   final AuthRepository auth;
@@ -22,6 +25,7 @@ class Repositories {
   final CategoryRepository categories;
   final TransactionRepository transactions;
   final BudgetRepository budgets;
+  final SavingsGoalRepository savingsGoals;
   final ReportRepository reports;
 }
 
@@ -67,6 +71,8 @@ class AuthRepository {
       UserModel.fromJson(await client.put('/profile', data: data));
   Future<void> changePassword(Map<String, dynamic> data) =>
       client.put('/profile/password', data: data);
+  Future<void> forgotPassword(String email) =>
+      client.post('/auth/forgot-password', data: {'email': email});
   Future<void> logout() => client.post('/auth/logout');
 }
 
@@ -130,6 +136,35 @@ class BudgetRepository {
   Future<void> delete(int id) => client.delete('/budgets/$id');
 }
 
+class SavingsGoalRepository {
+  SavingsGoalRepository(this.client);
+  final ApiClient client;
+
+  Future<List<SavingsGoalModel>> all() async => _collection(
+    await client.get('/savings-goals'),
+    SavingsGoalModel.fromJson,
+  );
+
+  Future<SavingsGoalModel> create(Map<String, dynamic> data) async =>
+      SavingsGoalModel.fromJson(
+        await client.post('/savings-goals', data: data),
+      );
+
+  Future<SavingsGoalModel> update(int id, Map<String, dynamic> data) async =>
+      SavingsGoalModel.fromJson(
+        await client.put('/savings-goals/$id', data: data),
+      );
+
+  Future<SavingsGoalModel> contribute(
+    int id,
+    Map<String, dynamic> data,
+  ) async => SavingsGoalModel.fromJson(
+    await client.post('/savings-goals/$id/contributions', data: data),
+  );
+
+  Future<void> delete(int id) => client.delete('/savings-goals/$id');
+}
+
 class ReportRepository {
   ReportRepository(this.client);
   final ApiClient client;
@@ -141,6 +176,13 @@ class ReportRepository {
       List<dynamic>.from(await client.get('/reports/account-summary'));
   Future<List<dynamic>> yearly() async =>
       List<dynamic>.from(await client.get('/reports/yearly-summary'));
+  Future<AnalyticsDataset> analytics(AnalyticsFilter filter) async =>
+      AnalyticsDataset.fromJson(
+        Map<String, dynamic>.from(
+          await client.get('/reports/analytics', query: filter.toQuery())
+              as Map,
+        ),
+      );
 }
 
 List<T> _collection<T>(

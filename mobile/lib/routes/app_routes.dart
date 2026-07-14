@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../presentation/screens/budgets/safe_add_budget_screen.dart';
 import '../presentation/screens/categories/safe_add_category_screen.dart';
+import '../presentation/screens/goals/goals_screen.dart';
 import '../presentation/screens/settings/safe_settings_screens.dart';
+import '../presentation/screens/settings/about_app_screen.dart';
 import '../presentation/screens/transactions/compact_add_transaction_screen.dart';
 import '../presentation/screens/all_screens.dart';
 
@@ -24,9 +26,11 @@ class AppRoutes {
   static const budgets = '/budgets';
   static const addBudget = '/budgets/add';
   static const reports = '/reports';
+  static const goals = '/goals';
   static const profile = '/profile';
   static const editProfile = '/profile/edit';
   static const settings = '/settings';
+  static const about = '/settings/about';
 
   static Map<String, WidgetBuilder> get routes => {
     splash: (_) => const SplashScreen(),
@@ -48,8 +52,10 @@ class AppRoutes {
     budgets: (_) => const BudgetsScreen(),
     addBudget: (_) => const SafeAddBudgetScreen(),
     reports: (_) => const ReportsScreen(),
+    goals: (_) => const GoalsScreen(),
     profile: (_) => const SafeProfileScreen(),
     editProfile: (_) => const SafeEditProfileScreen(),
     settings: (_) => const SafeSettingsScreen(),
+    about: (_) => const AboutAppScreen(),
   };
 }

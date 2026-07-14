@@ -10,8 +10,13 @@ import '../../providers/app_providers.dart';
 import '../../widgets/app_widgets.dart';
 
 class CompactAddTransactionScreen extends StatefulWidget {
-  const CompactAddTransactionScreen({super.key, this.transaction});
+  const CompactAddTransactionScreen({
+    super.key,
+    this.transaction,
+    this.initialDate,
+  });
   final TransactionModel? transaction;
+  final DateTime? initialDate;
 
   @override
   State<CompactAddTransactionScreen> createState() =>
@@ -43,6 +48,8 @@ class _CompactAddTransactionScreenState
       fromAccountId = tx.fromAccount?.id;
       toAccountId = tx.toAccount?.id;
       date = tx.transactionDate;
+    } else if (widget.initialDate != null) {
+      date = widget.initialDate!;
     }
     Future.microtask(() async {
       await context.read<AccountProvider>().load();
@@ -199,7 +206,7 @@ class _CompactAddTransactionScreenState
                         if (txState.error != null)
                           Text(
                             txState.error!,
-                            style: const TextStyle(color: AppColors.expense),
+                            style: TextStyle(color: AppColors.expense),
                           ),
                         PrototypeButton(
                           label: type == 'transfer'
@@ -287,7 +294,7 @@ class _CompactTypeToggle extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
-      color: AppColors.border,
+      color: context.appBorder,
       borderRadius: BorderRadius.circular(14),
     ),
     child: Row(
@@ -318,7 +325,7 @@ class _CompactTypeToggle extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : AppColors.muted,
+                  color: selected ? Colors.white : context.appMuted,
                 ),
               ),
             ),

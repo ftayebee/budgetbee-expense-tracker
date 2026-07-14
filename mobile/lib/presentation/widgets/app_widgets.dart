@@ -8,6 +8,8 @@ import '../../data/models/category_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../routes/app_routes.dart';
 
+export 'brand_images.dart';
+
 class PrototypeCard extends StatelessWidget {
   const PrototypeCard({
     super.key,
@@ -16,14 +18,14 @@ class PrototypeCard extends StatelessWidget {
     this.margin,
     this.onTap,
     this.gradient,
-    this.color = AppColors.card,
+    this.color,
   });
   final Widget child;
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry? margin;
   final VoidCallback? onTap;
   final Gradient? gradient;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +33,7 @@ class PrototypeCard extends StatelessWidget {
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
-        color: gradient == null ? color : null,
+        color: gradient == null ? (color ?? context.appCard) : null,
         gradient: gradient,
         borderRadius: BorderRadius.circular(18),
         boxShadow: const [
@@ -76,7 +78,7 @@ class PrototypeButton extends StatelessWidget {
     final colors = switch (variant) {
       ButtonVariant.primary => (AppColors.primary, Colors.white, null),
       ButtonVariant.secondary => (
-        AppColors.primarySoft,
+        context.appPrimarySoft,
         AppColors.primary,
         null,
       ),
@@ -136,6 +138,7 @@ class PrototypeInput extends StatelessWidget {
     this.prefix,
     this.readOnly = false,
     this.onTap,
+    this.focusNode,
   });
   final TextEditingController controller;
   final String label;
@@ -148,6 +151,7 @@ class PrototypeInput extends StatelessWidget {
   final String? prefix;
   final bool readOnly;
   final VoidCallback? onTap;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -155,10 +159,10 @@ class PrototypeInput extends StatelessWidget {
     children: [
       Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: AppColors.muted,
+          color: context.appMuted,
         ),
       ),
       const SizedBox(height: 6),
@@ -170,12 +174,13 @@ class PrototypeInput extends StatelessWidget {
         obscureText: obscureText,
         readOnly: readOnly,
         onTap: onTap,
-        style: const TextStyle(fontSize: 15, color: AppColors.text),
+        focusNode: focusNode,
+        style: TextStyle(fontSize: 15, color: context.appText),
         decoration: InputDecoration(
           hintText: placeholder,
           prefixIcon: icon == null
               ? null
-              : Icon(icon, size: 18, color: AppColors.muted),
+              : Icon(icon, size: 18, color: context.appMuted),
           prefixText: prefix,
         ),
       ),
@@ -201,9 +206,9 @@ class PrototypeTopBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) => Container(
     height: 56,
     padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-    decoration: const BoxDecoration(
-      color: AppColors.card,
-      border: Border(bottom: BorderSide(color: AppColors.border)),
+    decoration: BoxDecoration(
+      color: context.appCard,
+      border: Border(bottom: BorderSide(color: context.appBorder)),
     ),
     child: Row(
       children: [
@@ -221,10 +226,10 @@ class PrototypeTopBar extends StatelessWidget implements PreferredSizeWidget {
           child: Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: AppColors.text,
+              color: context.appText,
             ),
           ),
         ),
@@ -271,72 +276,83 @@ class PrototypeBottomNav extends StatelessWidget {
       (AppRoutes.reports, Icons.pie_chart_rounded, 'Reports'),
       (AppRoutes.settings, Icons.settings_rounded, 'Settings'),
     ];
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.card,
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
-      padding: const EdgeInsets.only(top: 8, bottom: 4),
-      child: Row(
-        children: items.map((item) {
-          final isFab = item.$1 == AppRoutes.addTransaction;
-          final isActive = active == item.$1;
-          return Expanded(
-            child: InkWell(
-              onTap: () => isFab
-                  ? Navigator.pushNamed(context, item.$1)
-                  : Navigator.pushReplacementNamed(context, item.$1),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isFab)
-                    Transform.translate(
-                      offset: const Offset(0, -18),
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: .45),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4),
+    return ColoredBox(
+      color: context.appCard,
+      child: SafeArea(
+        top: false,
+        minimum: EdgeInsets.zero,
+        child: Container(
+          decoration: BoxDecoration(
+            color: context.appCard,
+            border: Border(top: BorderSide(color: context.appBorder)),
+          ),
+          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          child: Row(
+            children: items.map((item) {
+              final isFab = item.$1 == AppRoutes.addTransaction;
+              final isActive = active == item.$1;
+              return Expanded(
+                child: InkWell(
+                  onTap: () => isFab
+                      ? Navigator.pushNamed(context, item.$1)
+                      : Navigator.pushReplacementNamed(context, item.$1),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isFab)
+                        Transform.translate(
+                          offset: const Offset(0, -18),
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(
+                                    alpha: .45,
+                                  ),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                          ],
+                            child: const Icon(
+                              Icons.add,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                        )
+                      else
+                        Icon(
+                          item.$2,
+                          size: 22,
+                          color: isActive
+                              ? context.appText
+                              : context.appText.withValues(alpha: .4),
                         ),
-                        child: const Icon(
-                          Icons.add,
-                          color: Colors.white,
-                          size: 28,
+                      if (!isFab) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          item.$3,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: isActive
+                                ? AppColors.primary
+                                : context.appFaint,
+                          ),
                         ),
-                      ),
-                    )
-                  else
-                    Icon(
-                      item.$2,
-                      size: 22,
-                      color: isActive
-                          ? AppColors.text
-                          : AppColors.text.withValues(alpha: .4),
-                    ),
-                  if (!isFab) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      item.$3,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: isActive ? AppColors.primary : AppColors.faint,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        }).toList(),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }
@@ -368,8 +384,8 @@ class PrototypeTransactionCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: isTransfer
-                  ? AppColors.primarySoft
-                  : (isIncome ? AppColors.incomeSoft : AppColors.expenseSoft),
+                  ? context.appPrimarySoft
+                  : (isIncome ? context.appIncomeSoft : context.appExpenseSoft),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Center(
@@ -388,16 +404,16 @@ class PrototypeTransactionCard extends StatelessWidget {
                   transaction.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.text,
+                    color: context.appText,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  style: TextStyle(fontSize: 12, color: context.appMuted),
                 ),
               ],
             ),
@@ -447,20 +463,20 @@ class PrototypeEmptyState extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: AppColors.text,
+              color: context.appText,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               height: 1.6,
-              color: AppColors.muted,
+              color: context.appMuted,
             ),
           ),
           if (actionLabel != null && onAction != null) ...[
@@ -484,10 +500,10 @@ class PrototypeSectionLabel extends StatelessWidget {
     padding: const EdgeInsets.only(left: 4, bottom: 8),
     child: Text(
       label.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w700,
-        color: AppColors.faint,
+        color: context.appFaint,
         letterSpacing: .8,
       ),
     ),
@@ -535,10 +551,10 @@ class CustomDropdown<T> extends StatelessWidget {
     children: [
       Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: AppColors.muted,
+          color: context.appMuted,
         ),
       ),
       const SizedBox(height: 6),
@@ -597,7 +613,7 @@ class AccountCard extends StatelessWidget {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: AppColors.primarySoft,
+            color: context.appPrimarySoft,
             borderRadius: BorderRadius.circular(14),
           ),
           child: const Icon(
@@ -619,17 +635,17 @@ class AccountCard extends StatelessWidget {
               ),
               Text(
                 account.type.replaceAll('_', ' '),
-                style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                style: TextStyle(fontSize: 12, color: context.appMuted),
               ),
             ],
           ),
         ),
         Text(
           CurrencyFormatter.format(account.currentBalance),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
-            color: AppColors.text,
+            color: context.appText,
           ),
         ),
       ],
@@ -656,10 +672,10 @@ class CategoryChipTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: .12) : AppColors.card,
+          color: selected ? color.withValues(alpha: .12) : context.appCard,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? color : AppColors.border,
+            color: selected ? color : context.appBorder,
             width: 1.5,
           ),
         ),
@@ -673,7 +689,7 @@ class CategoryChipTile extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: selected ? color : AppColors.muted,
+                color: selected ? color : context.appMuted,
               ),
             ),
           ],
@@ -692,10 +708,10 @@ class SectionHeader extends StatelessWidget {
     children: [
       Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w700,
-          color: AppColors.text,
+          color: context.appText,
         ),
       ),
       const Spacer(),
@@ -767,10 +783,7 @@ class SummaryCard extends StatelessWidget {
           child: Icon(icon, size: 16, color: color),
         ),
         const SizedBox(height: 6),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 11, color: AppColors.muted),
-        ),
+        Text(title, style: TextStyle(fontSize: 11, color: context.appMuted)),
         const SizedBox(height: 2),
         Text(
           CurrencyFormatter.format(value),

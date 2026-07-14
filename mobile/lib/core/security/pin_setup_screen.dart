@@ -33,6 +33,8 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         ),
         child: Column(
           children: [
+            const AppLogo(width: 160),
+            const SizedBox(height: 24),
             PrototypeInput(
               controller: pin,
               label: '4-digit PIN',
@@ -52,10 +54,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  error!,
-                  style: const TextStyle(color: AppColors.expense),
-                ),
+                child: Text(error!, style: TextStyle(color: AppColors.expense)),
               ),
             ],
             const SizedBox(height: 16),

@@ -7,6 +7,7 @@ class AppSettingsService {
   static const _currencyKey = 'currency_code';
   static const _appLockEnabledKey = 'app_lock_enabled';
   static const _biometricEnabledKey = 'biometric_enabled';
+  static const _appLockTimeoutSecondsKey = 'app_lock_timeout_seconds';
 
   final SharedPreferences _preferences;
 
@@ -26,4 +27,9 @@ class AppSettingsService {
       _preferences.getBool(_biometricEnabledKey) ?? false;
   Future<void> setBiometricEnabled(bool value) =>
       _preferences.setBool(_biometricEnabledKey, value);
+
+  int get appLockTimeoutSeconds =>
+      _preferences.getInt(_appLockTimeoutSecondsKey) ?? 30;
+  Future<void> setAppLockTimeoutSeconds(int value) =>
+      _preferences.setInt(_appLockTimeoutSecondsKey, value);
 }

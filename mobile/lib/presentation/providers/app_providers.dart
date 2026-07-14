@@ -6,6 +6,7 @@ import '../../data/models/account_model.dart';
 import '../../data/models/budget_model.dart';
 import '../../data/models/category_model.dart';
 import '../../data/models/dashboard_model.dart';
+import '../../data/models/savings_goal_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/repositories.dart';
@@ -95,6 +96,14 @@ class AuthProvider extends Loadable {
     });
     return result == true;
   }
+
+  Future<bool> forgotPassword(String email) async {
+    final result = await run(() async {
+      await repo.forgotPassword(email);
+      return true;
+    });
+    return result == true;
+  }
 }
 
 class DashboardProvider extends Loadable {
@@ -143,15 +152,23 @@ class TransactionProvider extends Loadable {
   TransactionProvider(this.repo);
   final TransactionRepository repo;
   List<TransactionModel> transactions = [];
+  int revision = 0;
   Future<void> load([Map<String, dynamic>? filters]) async =>
       transactions = await run(() => repo.all(filters)) ?? transactions;
   Future<void> save(Map<String, dynamic> data, [int? id]) async {
-    await run(() => id == null ? repo.create(data) : repo.update(id, data));
+    final result = await run(
+      () => id == null ? repo.create(data) : repo.update(id, data),
+    );
+    if (result != null) revision++;
     await load();
   }
 
   Future<void> remove(int id) async {
-    await run(() => repo.delete(id));
+    final result = await run(() async {
+      await repo.delete(id);
+      return true;
+    });
+    if (result == true) revision++;
     await load();
   }
 }
@@ -184,5 +201,37 @@ class ReportProvider extends Loadable {
       yearly = await repo.yearly();
       return true;
     });
+  }
+}
+
+class SavingsGoalProvider extends Loadable {
+  SavingsGoalProvider(this.repo);
+  final SavingsGoalRepository repo;
+  List<SavingsGoalModel> goals = [];
+
+  double get totalTarget => goals.fold(0, (sum, g) => sum + g.targetAmount);
+  double get totalSaved => goals.fold(0, (sum, g) => sum + g.currentAmount);
+
+  Future<void> load() async => goals = await run(repo.all) ?? goals;
+
+  Future<bool> save(Map<String, dynamic> data, {int? id}) async {
+    final result = await run(
+      () => id == null ? repo.create(data) : repo.update(id, data),
+    );
+    if (result == null) return false;
+    await load();
+    return true;
+  }
+
+  Future<bool> contribute(int id, Map<String, dynamic> data) async {
+    final result = await run(() => repo.contribute(id, data));
+    if (result == null) return false;
+    await load();
+    return true;
+  }
+
+  Future<void> remove(int id) async {
+    await run(() => repo.delete(id));
+    await load();
   }
 }

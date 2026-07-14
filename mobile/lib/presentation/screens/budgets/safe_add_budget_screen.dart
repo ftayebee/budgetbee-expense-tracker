@@ -89,10 +89,10 @@ class _SafeAddBudgetScreenState extends State<SafeAddBudgetScreen> {
                 const SizedBox(height: 14),
                 Text(
                   'Month',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.muted,
+                    color: context.appMuted,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -109,13 +109,13 @@ class _SafeAddBudgetScreenState extends State<SafeAddBudgetScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
                           color: selected
-                              ? AppColors.primarySoft
-                              : AppColors.card,
+                              ? context.appPrimarySoft
+                              : context.appCard,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: selected
                                 ? AppColors.primary
-                                : AppColors.border,
+                                : context.appBorder,
                             width: 1.5,
                           ),
                         ),
@@ -127,7 +127,7 @@ class _SafeAddBudgetScreenState extends State<SafeAddBudgetScreen> {
                             fontWeight: FontWeight.w600,
                             color: selected
                                 ? AppColors.primary
-                                : AppColors.muted,
+                                : context.appMuted,
                           ),
                         ),
                       ),
@@ -144,7 +144,7 @@ class _SafeAddBudgetScreenState extends State<SafeAddBudgetScreen> {
                 if (budgets.error != null)
                   Text(
                     budgets.error!,
-                    style: const TextStyle(color: AppColors.expense),
+                    style: TextStyle(color: AppColors.expense),
                   ),
                 PrototypeButton(
                   label: 'Save Budget',

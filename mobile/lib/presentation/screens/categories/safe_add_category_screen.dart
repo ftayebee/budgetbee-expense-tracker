@@ -81,10 +81,7 @@ class _SafeAddCategoryScreenState extends State<SafeAddCategoryScreen> {
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Center(
-                    child: Text(
-                      selectedIcon,
-                      style: const TextStyle(fontSize: 40),
-                    ),
+                    child: Text(selectedIcon, style: TextStyle(fontSize: 40)),
                   ),
                 ),
               ),
@@ -109,21 +106,18 @@ class _SafeAddCategoryScreenState extends State<SafeAddCategoryScreen> {
                           height: 44,
                           decoration: BoxDecoration(
                             color: selectedIcon == ic
-                                ? AppColors.primarySoft
-                                : AppColors.card,
+                                ? context.appPrimarySoft
+                                : context.appCard,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: selectedIcon == ic
                                   ? AppColors.primary
-                                  : AppColors.border,
+                                  : context.appBorder,
                               width: 2,
                             ),
                           ),
                           child: Center(
-                            child: Text(
-                              ic,
-                              style: const TextStyle(fontSize: 22),
-                            ),
+                            child: Text(ic, style: TextStyle(fontSize: 22)),
                           ),
                         ),
                       ),
@@ -146,7 +140,7 @@ class _SafeAddCategoryScreenState extends State<SafeAddCategoryScreen> {
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
                               color: selectedColor == c
-                                  ? AppColors.text
+                                  ? context.appText
                                   : Colors.transparent,
                               width: 3,
                             ),
@@ -168,10 +162,7 @@ class _SafeAddCategoryScreenState extends State<SafeAddCategoryScreen> {
               ),
               const SizedBox(height: 16),
               if (state.error != null)
-                Text(
-                  state.error!,
-                  style: const TextStyle(color: AppColors.expense),
-                ),
+                Text(state.error!, style: TextStyle(color: AppColors.expense)),
               PrototypeButton(
                 label: 'Save Category',
                 onPressed: state.loading
@@ -215,10 +206,10 @@ class _InlineChoices extends StatelessWidget {
     children: [
       Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: AppColors.muted,
+          color: context.appMuted,
         ),
       ),
       const SizedBox(height: 8),

@@ -11,6 +11,7 @@ import 'core/settings/theme_controller.dart';
 import 'core/storage/token_storage.dart';
 import 'data/repositories/repositories.dart';
 import 'presentation/providers/app_providers.dart';
+import 'features/analytics/presentation/analytics_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,7 +50,24 @@ void main() async {
           create: (_) => BudgetProvider(repositories.budgets),
         ),
         ChangeNotifierProvider(
+          create: (_) => SavingsGoalProvider(repositories.savingsGoals),
+        ),
+        ChangeNotifierProvider(
           create: (_) => ReportProvider(repositories.reports),
+        ),
+        ChangeNotifierProxyProvider2<
+          TransactionProvider,
+          AuthProvider,
+          AnalyticsController
+        >(
+          create: (_) => AnalyticsController(repositories.reports),
+          update: (_, transactions, auth, analytics) {
+            final controller =
+                analytics ?? AnalyticsController(repositories.reports);
+            controller.synchronizeUser(auth.user?.id);
+            controller.synchronizeTransactionRevision(transactions.revision);
+            return controller;
+          },
         ),
       ],
       child: const ExpenseTrackerApp(),
