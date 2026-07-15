@@ -8,6 +8,7 @@ class AppSettingsService {
   static const _appLockEnabledKey = 'app_lock_enabled';
   static const _biometricEnabledKey = 'biometric_enabled';
   static const _appLockTimeoutSecondsKey = 'app_lock_timeout_seconds';
+  static const _onboardingCompletedKey = 'has_completed_onboarding';
 
   final SharedPreferences _preferences;
 
@@ -32,4 +33,9 @@ class AppSettingsService {
       _preferences.getInt(_appLockTimeoutSecondsKey) ?? 30;
   Future<void> setAppLockTimeoutSeconds(int value) =>
       _preferences.setInt(_appLockTimeoutSecondsKey, value);
+
+  bool get hasCompletedOnboarding =>
+      _preferences.getBool(_onboardingCompletedKey) ?? false;
+  Future<void> completeOnboarding() =>
+      _preferences.setBool(_onboardingCompletedKey, true);
 }

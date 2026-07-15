@@ -409,7 +409,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            const Center(child: AppLogo(width: 160)),
+            const BudgetBeeBrand(size: BrandSize.standard, centered: true),
             const SizedBox(height: 24),
             Text(
               'Create Your Account',

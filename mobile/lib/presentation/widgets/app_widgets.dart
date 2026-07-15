@@ -76,7 +76,7 @@ class PrototypeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = switch (variant) {
-      ButtonVariant.primary => (AppColors.primary, Colors.white, null),
+      ButtonVariant.primary => (Colors.transparent, Colors.white, null),
       ButtonVariant.secondary => (
         context.appPrimarySoft,
         AppColors.primary,
@@ -99,7 +99,7 @@ class PrototypeButton extends StatelessWidget {
         Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
       ],
     );
-    return SizedBox(
+    final button = SizedBox(
       width: fullWidth ? double.infinity : null,
       height: height,
       child: TextButton(
@@ -117,6 +117,37 @@ class PrototypeButton extends StatelessWidget {
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         child: child,
+      ),
+    );
+    if (variant != ButtonVariant.primary) return button;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: onPressed == null
+            ? LinearGradient(
+                colors: [
+                  AppColors.primary.withValues(alpha: .45),
+                  AppColors.primaryDark.withValues(alpha: .45),
+                ],
+              )
+            : AppColors.deepGradient,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: onPressed == null
+            ? null
+            : [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: .18),
+                  blurRadius: 18,
+                  offset: const Offset(0, 7),
+                ),
+              ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(backgroundColor: Colors.transparent),
+          ),
+        ),
+        child: button,
       ),
     );
   }
@@ -203,38 +234,20 @@ class PrototypeTopBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(56);
 
   @override
-  Widget build(BuildContext context) => Container(
-    height: 56,
-    padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-    decoration: BoxDecoration(
-      color: context.appCard,
-      border: Border(bottom: BorderSide(color: context.appBorder)),
-    ),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 36,
-          child: onBack == null
-              ? null
-              : IconButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back, size: 22),
-                ),
-        ),
-        Expanded(
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: context.appText,
-            ),
+  Widget build(BuildContext context) => AppBar(
+    automaticallyImplyLeading: false,
+    leading: onBack == null
+        ? null
+        : IconButton(
+            tooltip: 'Back',
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back_rounded),
           ),
-        ),
-        SizedBox(width: 36, child: right),
-      ],
+    title: Text(title),
+    centerTitle: true,
+    actions: [SizedBox(width: 56, child: Center(child: right))],
+    shape: Border(
+      bottom: BorderSide(color: context.appBorder.withValues(alpha: .7)),
     ),
   );
 }
@@ -306,7 +319,7 @@ class PrototypeBottomNav extends StatelessWidget {
                             width: 48,
                             height: 48,
                             decoration: BoxDecoration(
-                              color: AppColors.primary,
+                              gradient: AppColors.primaryGradient,
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
@@ -330,7 +343,7 @@ class PrototypeBottomNav extends StatelessWidget {
                           item.$2,
                           size: 22,
                           color: isActive
-                              ? context.appText
+                              ? AppColors.primary
                               : context.appText.withValues(alpha: .4),
                         ),
                       if (!isFab) ...[

@@ -19,7 +19,11 @@ class AboutAppScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const Center(child: AppLogo(width: 180)),
+            const BudgetBeeBrand(
+              size: BrandSize.large,
+              showSlogan: true,
+              centered: true,
+            ),
             const SizedBox(height: 20),
             Text(
               'Version 1.0.0',

@@ -6,6 +6,7 @@ import '../presentation/screens/goals/goals_screen.dart';
 import '../presentation/screens/settings/safe_settings_screens.dart';
 import '../presentation/screens/settings/about_app_screen.dart';
 import '../presentation/screens/transactions/compact_add_transaction_screen.dart';
+import '../presentation/screens/auth/premium_auth_screens.dart';
 import '../presentation/screens/all_screens.dart';
 
 class AppRoutes {
@@ -33,9 +34,9 @@ class AppRoutes {
   static const about = '/settings/about';
 
   static Map<String, WidgetBuilder> get routes => {
-    splash: (_) => const SplashScreen(),
-    onboarding: (_) => const OnboardingScreen(),
-    login: (_) => const LoginScreen(),
+    splash: (_) => const PremiumSplashScreen(),
+    onboarding: (_) => const PremiumOnboardingScreen(),
+    login: (_) => const PremiumLoginScreen(),
     forgotPassword: (_) => const ForgotPasswordScreen(),
     register: (_) => const RegisterScreen(),
     dashboard: (_) => const DashboardScreen(),

@@ -79,20 +79,20 @@ flutter_launcher_icons:
   ios: true
   image_path: "lib/assets/images/app_icon.jpg"
   adaptive_icon_foreground: "lib/assets/images/app_icon.jpg"
-  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_background: "#0D0D0F"
   min_sdk_android: 21
   remove_alpha_ios: true
 
 flutter_native_splash:
-  color: "#F8FAFA"
-  color_dark: "#111827"
+  color: "#0D0D0F"
+  color_dark: "#0D0D0F"
   image: lib/assets/images/app_icon.jpg
   image_dark: lib/assets/images/app_icon.jpg
   android_12:
     image: lib/assets/images/app_icon.jpg
     image_dark: lib/assets/images/app_icon.jpg
-    color: "#F8FAFA"
-    color_dark: "#111827"
+    color: "#0D0D0F"
+    color_dark: "#0D0D0F"
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -18,6 +18,7 @@ class AppSettingsController extends ChangeNotifier {
 
   AppThemeMode get appThemeMode => _themeMode;
   String get currencyCode => _currencyCode;
+  bool get hasCompletedOnboarding => _service.hasCompletedOnboarding;
 
   ThemeMode get themeMode => switch (_themeMode) {
     AppThemeMode.system => ThemeMode.system,
@@ -35,6 +36,11 @@ class AppSettingsController extends ChangeNotifier {
     _currencyCode = code;
     CurrencyFormatter.currentCode = code;
     await _service.setCurrencyCode(code);
+    notifyListeners();
+  }
+
+  Future<void> completeOnboarding() async {
+    await _service.completeOnboarding();
     notifyListeners();
   }
 

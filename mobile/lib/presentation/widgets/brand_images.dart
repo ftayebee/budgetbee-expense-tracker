@@ -35,25 +35,81 @@ class AppLogo extends StatelessWidget {
       ),
     );
 
-    if (!ensureDarkModeContrast || theme.brightness != Brightness.dark) {
-      return image;
-    }
+    return image;
+  }
+}
 
-    // The supplied wordmark contains dark lettering. A neutral backdrop keeps
-    // the original artwork intact and readable without recoloring or tinting it.
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FBF8),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: .55),
+enum BrandSize { compact, standard, large }
+
+class BudgetBeeBrand extends StatelessWidget {
+  const BudgetBeeBrand({
+    super.key,
+    this.size = BrandSize.standard,
+    this.showSlogan = true,
+    this.centered = false,
+  });
+
+  final BrandSize size;
+  final bool showSlogan;
+  final bool centered;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconSize = switch (size) {
+      BrandSize.compact => 38.0,
+      BrandSize.standard => 46.0,
+      BrandSize.large => 64.0,
+    };
+    final titleSize = switch (size) {
+      BrandSize.compact => 20.0,
+      BrandSize.standard => 23.0,
+      BrandSize.large => 31.0,
+    };
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppIconImage(size: iconSize, borderRadius: iconSize * .28),
+        const SizedBox(width: 11),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Budget',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const TextSpan(
+                    text: 'Bee',
+                    style: TextStyle(color: Color(0xFFF59E0B)),
+                  ),
+                ],
+              ),
+              style: TextStyle(
+                fontSize: titleSize,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -.7,
+              ),
+            ),
+            if (showSlogan)
+              Text(
+                'Track. Save. Grow.',
+                style: TextStyle(
+                  fontSize: titleSize * .43,
+                  letterSpacing: .7,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ],
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: image,
-      ),
+      ],
     );
+    return centered ? Center(child: content) : content;
   }
 }
 

@@ -33,7 +33,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         ),
         child: Column(
           children: [
-            const AppLogo(width: 160),
+            const BudgetBeeBrand(size: BrandSize.standard, centered: true),
             const SizedBox(height: 24),
             PrototypeInput(
               controller: pin,

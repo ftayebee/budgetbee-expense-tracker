@@ -312,7 +312,10 @@ class _CompactTypeToggle extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
-                color: selected ? selectedColor : Colors.transparent,
+                color: selected && t == 'income' ? selectedColor : null,
+                gradient: selected && t != 'income'
+                    ? AppColors.deepGradient
+                    : null,
                 borderRadius: BorderRadius.circular(11),
               ),
               child: Text(

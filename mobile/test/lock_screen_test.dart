@@ -55,12 +55,16 @@ void main() {
     final service = await createService();
     await pumpGate(tester, service);
 
-    await tester.enterText(find.byType(TextFormField), '9999');
-    await tester.tap(find.widgetWithText(TextButton, 'Unlock'));
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.text('9'));
+      await tester.pump();
+    }
+    await tester.ensureVisible(find.text('Unlock BudgetBee'));
+    await tester.tap(find.text('Unlock BudgetBee'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Incorrect PIN.'), findsOneWidget);
-    expect(find.text('App Locked'), findsOneWidget);
+    expect(find.text('Incorrect PIN. Try again.'), findsOneWidget);
+    expect(find.text('Welcome Back'), findsOneWidget);
     expect(service.locked, isTrue);
   });
 
@@ -70,11 +74,15 @@ void main() {
     final service = await createService();
     await pumpGate(tester, service);
 
-    await tester.enterText(find.byType(TextFormField), '1234');
-    await tester.tap(find.widgetWithText(TextButton, 'Unlock'));
+    for (final digit in ['1', '2', '3', '4']) {
+      await tester.tap(find.text(digit));
+      await tester.pump();
+    }
+    await tester.ensureVisible(find.text('Unlock BudgetBee'));
+    await tester.tap(find.text('Unlock BudgetBee'));
     await tester.pumpAndSettle();
 
-    expect(find.text('App Locked'), findsNothing);
+    expect(find.text('Welcome Back'), findsNothing);
     expect(find.text('Main app'), findsOneWidget);
     expect(service.locked, isFalse);
   });

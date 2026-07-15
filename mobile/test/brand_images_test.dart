@@ -24,7 +24,7 @@ void main() {
     );
   });
 
-  testWidgets('logo remains constrained and readable in dark mode', (
+  testWidgets('logo remains constrained without adding a white card', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -34,10 +34,16 @@ void main() {
       ),
     );
 
-    expect(find.byType(DecoratedBox), findsWidgets);
     final size = tester.getSize(find.byType(Image));
     expect(size.width, 180);
     expect(size.height, lessThan(60));
+    expect(
+      find.descendant(
+        of: find.byType(AppLogo),
+        matching: find.byType(DecoratedBox),
+      ),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 }

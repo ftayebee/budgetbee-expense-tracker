@@ -256,7 +256,10 @@ class SafeSettingsScreen extends StatelessWidget {
                 child: PrototypeCard(
                   child: Row(
                     children: [
-                      const AppLogo(width: 130),
+                      const BudgetBeeBrand(
+                        size: BrandSize.compact,
+                        showSlogan: true,
+                      ),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
