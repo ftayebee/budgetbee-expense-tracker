@@ -9,8 +9,12 @@ trait ApiResponse
         return response()->json(['success' => true, 'message' => $message, 'data' => $data], $status);
     }
 
-    protected function error(string $message = 'Something went wrong', mixed $errors = [], int $status = 400)
+    protected function error(string $message = 'Request failed', mixed $errors = [], int $status = 400)
     {
-        return response()->json(['success' => false, 'message' => $message, 'errors' => $errors], $status);
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+            'errors' => is_array($errors) && array_is_list($errors) ? (object) [] : $errors,
+        ], $status);
     }
 }

@@ -22,8 +22,12 @@ class Loadable extends ChangeNotifier {
       return await task();
     } on ApiException catch (e) {
       error = e.message;
-    } catch (e) {
-      error = 'Something went wrong';
+    } catch (e, stackTrace) {
+      assert(() {
+        debugPrint('Unexpected provider error: $e\n$stackTrace');
+        return true;
+      }());
+      error = 'The response could not be processed. Please try again.';
     } finally {
       loading = false;
       notifyListeners();

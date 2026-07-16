@@ -50,13 +50,13 @@ return Application::configure(basePath: dirname(__DIR__))
             // Never leak internal error details or stack traces to API clients.
             if ($status === 500) {
                 report($e);
-                $message = 'Something went wrong';
+                $message = 'The server could not complete the request.';
             }
 
             return response()->json([
                 'success' => false,
                 'message' => $message,
-                'errors' => [],
+                'errors' => (object) [],
             ], $status);
         });
     })->create();

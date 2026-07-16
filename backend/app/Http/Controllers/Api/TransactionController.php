@@ -9,6 +9,8 @@ use App\Models\Transaction;
 use App\Services\TransactionService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class TransactionController extends Controller
 {
@@ -39,7 +41,7 @@ class TransactionController extends Controller
         }
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(fn ($q) => $q->where('title', 'like', "%{$search}%")->orWhere('note', 'like', "%{$search}%"));
+            $query->where(fn($q) => $q->where('title', 'like', "%{$search}%")->orWhere('note', 'like', "%{$search}%"));
         }
 
         $this->applySort($query, $request->input('sort', 'date_desc'));
@@ -80,18 +82,125 @@ class TransactionController extends Controller
         return $this->success(new TransactionResource($transaction->load(['account', 'category', 'fromAccount', 'toAccount'])));
     }
 
-    public function update(TransactionRequest $request, Transaction $transaction)
-    {
-        abort_unless($transaction->user_id === $request->user()->id, 404);
+    public function update(
+        TransactionRequest $request,
+        Transaction $transaction
+    ) {
+        $user = $request->user();
 
-        return $this->success(new TransactionResource($this->service->update($transaction, $request->validated() + ['user_id' => $request->user()->id])), 'Transaction updated');
+        Log::info('Transaction update requested', [
+            'transaction_id' => $transaction->id,
+            'transaction_user_id' => $transaction->user_id,
+            'authenticated_user_id' => $user?->id,
+            'request_ip' => $request->ip(),
+        ]);
+
+        if ((int) $transaction->user_id !== (int) $user->id) {
+            Log::warning('Unauthorized transaction update attempt', [
+                'transaction_id' => $transaction->id,
+                'transaction_user_id' => $transaction->user_id,
+                'authenticated_user_id' => $user->id,
+                'request_ip' => $request->ip(),
+            ]);
+
+            abort(404);
+        }
+
+        try {
+            $validatedData = $request->validated();
+
+            Log::debug('Transaction update validation passed', [
+                'transaction_id' => $transaction->id,
+                'authenticated_user_id' => $user->id,
+                'validated_fields' => array_keys($validatedData),
+            ]);
+
+            $updatedTransaction = $this->service->update(
+                $transaction,
+                $validatedData + [
+                    'user_id' => $user->id,
+                ]
+            );
+
+            Log::info('Transaction updated successfully', [
+                'transaction_id' => $updatedTransaction->id,
+                'authenticated_user_id' => $user->id,
+            ]);
+
+            return $this->success(
+                new TransactionResource($updatedTransaction),
+                'Transaction updated',
+                200
+            );
+        } catch (Throwable $exception) {
+            Log::error('Transaction update failed', [
+                'transaction_id' => $transaction->id,
+                'authenticated_user_id' => $user->id,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
+            throw $exception;
+        }
     }
 
     public function destroy(Request $request, Transaction $transaction)
     {
-        abort_unless($transaction->user_id === $request->user()->id, 404);
-        $this->service->delete($transaction);
+        $user = $request->user();
 
-        return $this->success(null, 'Transaction deleted');
+        Log::info('Transaction delete requested', [
+            'transaction_id' => $transaction->id,
+            'transaction_user_id' => $transaction->user_id,
+            'authenticated_user_id' => $user?->id,
+            'request_method' => $request->method(),
+            'request_url' => $request->fullUrl(),
+            'request_ip' => $request->ip(),
+        ]);
+
+        if (!$user || (int) $transaction->user_id !== (int) $user->id) {
+            Log::warning('Unauthorized transaction delete attempt', [
+                'transaction_id' => $transaction->id,
+                'transaction_user_id' => $transaction->user_id,
+                'authenticated_user_id' => $user?->id,
+                'request_ip' => $request->ip(),
+            ]);
+
+            abort(404);
+        }
+
+        try {
+            $transactionId = $transaction->id;
+
+            Log::debug('Transaction delete service starting', [
+                'transaction_id' => $transactionId,
+                'authenticated_user_id' => $user->id,
+            ]);
+
+            $this->service->delete($transaction);
+
+            Log::info('Transaction deleted successfully', [
+                'transaction_id' => $transactionId,
+                'authenticated_user_id' => $user->id,
+            ]);
+
+            return $this->success(
+                null,
+                'Transaction deleted',
+                200
+            );
+        } catch (Throwable $exception) {
+            Log::error('Transaction delete failed', [
+                'transaction_id' => $transaction->id,
+                'authenticated_user_id' => $user->id,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
+
+            throw $exception;
+        }
     }
 }

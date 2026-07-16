@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import '../constants/api_constants.dart';
 import '../storage/token_storage.dart';
+import 'api_error_mapper.dart';
 import 'api_exception.dart';
 
 class ApiClient {
@@ -59,23 +60,7 @@ class ApiClient {
       );
     } on DioException catch (e) {
       _logError(e);
-      final body = e.response?.data;
-      if (body is Map) {
-        throw ApiException(
-          body['message']?.toString() ?? 'Request failed',
-          errors: Map<String, dynamic>.from(body['errors'] ?? {}),
-          statusCode: e.response?.statusCode,
-        );
-      }
-      throw ApiException(switch (e.type) {
-        DioExceptionType.connectionTimeout =>
-          'Connection timed out. Please try again.',
-        DioExceptionType.sendTimeout || DioExceptionType.receiveTimeout =>
-          'The server took too long to respond. Please try again.',
-        DioExceptionType.connectionError =>
-          'Unable to connect. Check your internet connection and try again.',
-        _ => 'Unable to complete the request. Please try again.',
-      }, statusCode: e.response?.statusCode);
+      throw ApiErrorMapper.fromDio(e);
     }
   }
 

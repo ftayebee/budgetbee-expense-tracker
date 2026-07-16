@@ -109,6 +109,34 @@ class TransactionTest extends TestCase
         $this->assertDatabaseMissing('transactions', ['id' => $id]);
     }
 
+    public function test_update_and_delete_return_consistent_json_envelopes(): void
+    {
+        $create = $this->postJson('/api/v1/transactions', [
+            'title' => 'Production contract',
+            'type' => 'expense',
+            'amount' => 100,
+            'account_id' => $this->account->id,
+            'category_id' => $this->expenseCat->id,
+            'transaction_date' => now()->toDateString(),
+        ])->assertCreated();
+
+        $id = $create->json('data.id');
+        $this->putJson("/api/v1/transactions/{$id}", [
+            'title' => 'Updated contract',
+            'type' => 'expense',
+            'amount' => 125,
+            'account_id' => $this->account->id,
+            'category_id' => $this->expenseCat->id,
+            'transaction_date' => now()->toDateString(),
+        ])->assertOk()->assertJsonPath('success', true)->assertJsonPath('message', 'Transaction updated')->assertJsonPath('data.id', $id);
+
+        $this->deleteJson("/api/v1/transactions/{$id}")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Transaction deleted')
+            ->assertJsonPath('data', null);
+    }
+
     public function test_transaction_requires_valid_amount(): void
     {
         $this->postJson('/api/v1/transactions', [
