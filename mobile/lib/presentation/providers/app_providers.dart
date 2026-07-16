@@ -155,21 +155,40 @@ class TransactionProvider extends Loadable {
   int revision = 0;
   Future<void> load([Map<String, dynamic>? filters]) async =>
       transactions = await run(() => repo.all(filters)) ?? transactions;
-  Future<void> save(Map<String, dynamic> data, [int? id]) async {
-    final result = await run(
-      () => id == null ? repo.create(data) : repo.update(id, data),
-    );
-    if (result != null) revision++;
+  Future<bool> save(Map<String, dynamic> data, [int? id]) async {
+    TransactionModel? saved;
+    final success = await run(() async {
+      saved = id == null
+          ? await repo.create(data)
+          : await repo.update(id, data);
+      return true;
+    });
+    if (success != true) return false;
+    if (saved != null) {
+      final index = transactions.indexWhere((item) => item.id == saved!.id);
+      if (index == -1) {
+        transactions.insert(0, saved!);
+      } else {
+        transactions[index] = saved!;
+      }
+    }
+    revision++;
+    notifyListeners();
     await load();
+    return true;
   }
 
-  Future<void> remove(int id) async {
+  Future<bool> remove(int id) async {
     final result = await run(() async {
       await repo.delete(id);
       return true;
     });
-    if (result == true) revision++;
+    if (result != true) return false;
+    transactions.removeWhere((item) => item.id == id);
+    revision++;
+    notifyListeners();
     await load();
+    return true;
   }
 }
 

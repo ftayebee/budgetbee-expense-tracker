@@ -46,6 +46,6 @@ class AppSettingsController extends ChangeNotifier {
 
   AppThemeMode _parseThemeMode(String value) => AppThemeMode.values.firstWhere(
     (mode) => mode.name == value,
-    orElse: () => AppThemeMode.system,
+    orElse: () => AppThemeMode.light,
   );
 }

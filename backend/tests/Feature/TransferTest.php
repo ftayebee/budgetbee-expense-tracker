@@ -100,4 +100,28 @@ class TransferTest extends TestCase
         $this->assertEquals(1000.00, $this->from->fresh()->current_balance);
         $this->assertEquals(0.00, $this->to->fresh()->current_balance);
     }
+
+    public function test_updating_a_transfer_validates_against_the_restored_balance(): void
+    {
+        $create = $this->postJson('/api/v1/transactions', [
+            'title' => 'Transfer',
+            'type' => 'transfer',
+            'amount' => 400,
+            'from_account_id' => $this->from->id,
+            'to_account_id' => $this->to->id,
+            'transaction_date' => now()->toDateString(),
+        ])->assertCreated();
+
+        $this->putJson('/api/v1/transactions/'.$create->json('data.id'), [
+            'title' => 'Larger transfer',
+            'type' => 'transfer',
+            'amount' => 700,
+            'from_account_id' => $this->from->id,
+            'to_account_id' => $this->to->id,
+            'transaction_date' => now()->toDateString(),
+        ])->assertOk();
+
+        $this->assertEquals(300.00, $this->from->fresh()->current_balance);
+        $this->assertEquals(700.00, $this->to->fresh()->current_balance);
+    }
 }

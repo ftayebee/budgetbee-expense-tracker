@@ -41,7 +41,14 @@ class TransactionRequest extends FormRequest
                     if (! Account::where('id', $this->to_account_id)->where('user_id', $userId)->exists()) {
                         $validator->errors()->add('to_account_id', 'The selected destination account is invalid.');
                     }
-                    if ($from && (float) $from->current_balance < (float) $this->amount) {
+                    $availableBalance = (float) ($from?->current_balance ?? 0);
+                    $existing = $this->route('transaction');
+                    if ($existing && $existing->type === 'transfer' && (int) $existing->from_account_id === (int) $this->from_account_id) {
+                        // Validation runs before TransactionService reverses the old
+                        // transfer, so include that amount when checking an edit.
+                        $availableBalance += (float) $existing->amount;
+                    }
+                    if ($from && $availableBalance < (float) $this->amount) {
                         $validator->errors()->add('amount', 'Transfer amount exceeds the source account balance.');
                     }
                     return;

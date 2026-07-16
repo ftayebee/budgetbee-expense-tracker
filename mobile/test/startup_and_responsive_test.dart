@@ -3,6 +3,7 @@ import 'package:expense_tracker/core/settings/app_settings_service.dart';
 import 'package:expense_tracker/core/settings/theme_controller.dart';
 import 'package:expense_tracker/core/storage/token_storage.dart';
 import 'package:expense_tracker/core/theme/app_theme.dart';
+import 'package:expense_tracker/core/theme/auth_theme.dart';
 import 'package:expense_tracker/data/repositories/repositories.dart';
 import 'package:expense_tracker/presentation/providers/app_providers.dart';
 import 'package:expense_tracker/presentation/screens/auth/premium_auth_screens.dart';
@@ -66,7 +67,7 @@ void main() {
         value: settings,
         child: MaterialApp(
           theme: AppTheme.dark(),
-          home: const PremiumOnboardingScreen(),
+          home: const AuthRouteTheme(child: PremiumOnboardingScreen()),
           routes: {'/login': (_) => const Scaffold(body: Text('Login route'))},
         ),
       ),
@@ -91,7 +92,7 @@ void main() {
         value: settings,
         child: MaterialApp(
           theme: AppTheme.dark(),
-          home: const PremiumOnboardingScreen(),
+          home: const AuthRouteTheme(child: PremiumOnboardingScreen()),
           routes: {'/login': (_) => const Scaffold(body: Text('Login route'))},
         ),
       ),
@@ -124,7 +125,7 @@ void main() {
         value: auth,
         child: MaterialApp(
           theme: AppTheme.dark(),
-          home: const PremiumLoginScreen(),
+          home: const AuthRouteTheme(child: PremiumLoginScreen()),
           routes: {
             '/forgot-password': (_) => const SizedBox(),
             '/register': (_) => const SizedBox(),

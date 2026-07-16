@@ -8,6 +8,6 @@ class Validators {
 
   static String? amount(String? value) {
     final parsed = double.tryParse(value ?? '');
-    return parsed == null || parsed <= 0 ? 'Enter a valid amount' : null;
+    return parsed == null || parsed < 0 ? 'Enter a valid amount' : null;
   }
 }

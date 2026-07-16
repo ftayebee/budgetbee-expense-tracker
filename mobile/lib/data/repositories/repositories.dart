@@ -119,10 +119,13 @@ class TransactionRepository {
       );
   Future<TransactionModel> create(Map<String, dynamic> data) async =>
       TransactionModel.fromJson(await client.post('/transactions', data: data));
-  Future<TransactionModel> update(int id, Map<String, dynamic> data) async =>
-      TransactionModel.fromJson(
-        await client.put('/transactions/$id', data: data),
-      );
+  Future<TransactionModel?> update(int id, Map<String, dynamic> data) async {
+    final response = await client.put('/transactions/$id', data: data);
+    return response is Map
+        ? TransactionModel.fromJson(Map<String, dynamic>.from(response))
+        : null;
+  }
+
   Future<void> delete(int id) => client.delete('/transactions/$id');
 }
 

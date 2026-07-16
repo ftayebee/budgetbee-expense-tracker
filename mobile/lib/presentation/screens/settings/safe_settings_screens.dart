@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/security/app_lock_service.dart';
 import '../../../core/security/pin_setup_screen.dart';
+import '../../../core/services/app_actions.dart';
 import '../../../core/settings/app_currency.dart';
 import '../../../core/settings/theme_controller.dart';
 import '../../../core/utils/validators.dart';
@@ -441,17 +442,25 @@ class SafeSettingsScreen extends StatelessWidget {
               _SettingsSection(
                 title: 'More',
                 rows: [
-                  const _SettingsRow(icon: '⭐', label: 'Rate App'),
+                  _SettingsRow(
+                    icon: '⭐',
+                    label: 'Rate App',
+                    onTap: () => AppActions.rateApp(context),
+                  ),
                   _SettingsRow(
                     icon: 'ℹ️',
                     label: 'About BudgetBee',
                     onTap: () => Navigator.pushNamed(context, AppRoutes.about),
                   ),
-                  const _SettingsRow(icon: '📋', label: 'Privacy Policy'),
+                  _SettingsRow(
+                    icon: '📋',
+                    label: 'Privacy Policy',
+                    onTap: () => AppActions.openPrivacyPolicy(context),
+                  ),
                   const _SettingsRow(
                     icon: 'ℹ️',
                     label: 'App Version',
-                    value: '1.0.0',
+                    value: 'See About',
                   ),
                 ],
               ),

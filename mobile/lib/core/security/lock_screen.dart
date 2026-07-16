@@ -131,10 +131,14 @@ class _LockScreenState extends State<LockScreen>
   @override
   Widget build(BuildContext context) {
     final lock = context.watch<AppLockService>();
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final background = isDark ? colors.surface : const Color(0xFFFFF8F3);
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: AppColors.darkStage,
+        backgroundColor: background,
         body: Stack(
           children: [
             Positioned(
@@ -147,7 +151,7 @@ class _LockScreenState extends State<LockScreen>
                   gradient: RadialGradient(
                     colors: [
                       AppColors.primary.withValues(alpha: .22),
-                      Colors.transparent,
+                      background.withValues(alpha: 0),
                     ],
                   ),
                 ),
@@ -187,19 +191,19 @@ class _LockScreenState extends State<LockScreen>
                           ),
                         ),
                         const SizedBox(height: 9),
-                        const Text(
+                        Text(
                           'Welcome Back',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: colors.onSurface,
                             fontSize: 25,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'Enter your PIN to unlock BudgetBee',
                           style: TextStyle(
-                            color: AppColors.darkMuted,
+                            color: colors.onSurfaceVariant,
                             fontSize: 14,
                           ),
                         ),
@@ -298,46 +302,49 @@ class BudgetBeePinIndicator extends StatelessWidget {
   final int filled;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: '$filled of $length PIN digits entered',
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(length, (index) {
-        final active = index < filled;
-        return AnimatedScale(
-          duration: const Duration(milliseconds: 150),
-          scale: active ? 1 : .9,
-          child: AnimatedContainer(
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      label: '$filled of $length PIN digits entered',
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(length, (index) {
+          final active = index < filled;
+          return AnimatedScale(
             duration: const Duration(milliseconds: 150),
-            width: 42,
-            height: 42,
-            margin: const EdgeInsets.symmetric(horizontal: 5),
-            decoration: BoxDecoration(
-              color: active
-                  ? AppColors.primary.withValues(alpha: .16)
-                  : AppColors.darkSurface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: active ? AppColors.primary : AppColors.darkBorder,
-                width: 1.4,
+            scale: active ? 1 : .9,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 42,
+              height: 42,
+              margin: const EdgeInsets.symmetric(horizontal: 5),
+              decoration: BoxDecoration(
+                color: active
+                    ? AppColors.primary.withValues(alpha: .16)
+                    : colors.surfaceContainer,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: active ? colors.primary : colors.outlineVariant,
+                  width: 1.4,
+                ),
               ),
-            ),
-            child: Center(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                width: active ? 12 : 8,
-                height: active ? 12 : 8,
-                decoration: BoxDecoration(
-                  color: active ? AppColors.primaryLight : AppColors.darkBorder,
-                  shape: BoxShape.circle,
+              child: Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: active ? 12 : 8,
+                  height: active ? 12 : 8,
+                  decoration: BoxDecoration(
+                    color: active ? colors.primary : colors.outlineVariant,
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      }),
-    ),
-  );
+          );
+        }),
+      ),
+    );
+  }
 }
 
 class BudgetBeeNumericKeypad extends StatelessWidget {
@@ -356,6 +363,7 @@ class BudgetBeeNumericKeypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final keys = <Object>[
       1,
       2,
@@ -402,7 +410,7 @@ class BudgetBeeNumericKeypad extends StatelessWidget {
           child: Material(
             color: isBiometric && onBiometric == null
                 ? Colors.transparent
-                : AppColors.darkSurface,
+                : colors.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(18),
             child: InkWell(
               onTap: callback,
@@ -414,8 +422,8 @@ class BudgetBeeNumericKeypad extends StatelessWidget {
                 child: keyValue is int
                     ? Text(
                         '$keyValue',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: colors.onSurface,
                           fontSize: 21,
                           fontWeight: FontWeight.w600,
                         ),
@@ -423,8 +431,8 @@ class BudgetBeeNumericKeypad extends StatelessWidget {
                     : Icon(
                         keyValue as IconData,
                         color: callback == null
-                            ? AppColors.darkBorder
-                            : AppColors.primaryLight,
+                            ? colors.outlineVariant
+                            : colors.primary,
                         size: 25,
                       ),
               ),

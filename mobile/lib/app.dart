@@ -20,7 +20,7 @@ class ExpenseTrackerApp extends StatelessWidget {
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
         initialRoute: AppRoutes.splash,
-        routes: AppRoutes.routes,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
         builder: (context, child) {
           final theme = Theme.of(context);
           final isDark = theme.brightness == Brightness.dark;

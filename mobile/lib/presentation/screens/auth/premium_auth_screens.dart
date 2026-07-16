@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/settings/theme_controller.dart';
+import '../../../core/theme/auth_theme.dart';
 import '../../../core/utils/validators.dart';
 import '../../../routes/app_routes.dart';
 import '../../providers/app_providers.dart';
@@ -56,20 +58,32 @@ class _PremiumSplashScreenState extends State<PremiumSplashScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
-    backgroundColor: AppColors.darkStage,
-    body: SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            BudgetBeeBrand(size: BrandSize.large, centered: true),
-            SizedBox(height: 28),
-            SizedBox.square(
-              dimension: 24,
-              child: CircularProgressIndicator(strokeWidth: 2.4),
-            ),
-          ],
+  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+    value: const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Color(0xFFFFF8F3),
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+    child: const Scaffold(
+      backgroundColor: Color(0xFFFFF8F3),
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              BudgetBeeBrand(size: BrandSize.large, centered: true),
+              SizedBox(height: 28),
+              SizedBox.square(
+                dimension: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
@@ -119,7 +133,7 @@ class _PremiumOnboardingScreenState extends State<PremiumOnboardingScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.darkStage,
+    backgroundColor: AuthTheme.background,
     body: Stack(
       children: [
         const Positioned(
@@ -167,7 +181,7 @@ class _PremiumOnboardingScreenState extends State<PremiumOnboardingScreen> {
                                 item.$1,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: AuthTheme.textPrimary,
                                   fontSize: 28,
                                   height: 1.12,
                                   fontWeight: FontWeight.w800,
@@ -179,7 +193,7 @@ class _PremiumOnboardingScreenState extends State<PremiumOnboardingScreen> {
                                 item.$2,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                  color: AppColors.darkMuted,
+                                  color: AuthTheme.textSecondary,
                                   fontSize: 15,
                                   height: 1.55,
                                 ),
@@ -252,170 +266,86 @@ class _PremiumLoginScreenState extends State<PremiumLoginScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.darkStage,
-    resizeToAvoidBottomInset: true,
-    body: Stack(
-      children: [
-        const Positioned(
-          top: -175,
-          left: -120,
-          right: -120,
-          child: _OrangeGlow(height: 400),
-        ),
-        SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: EdgeInsets.fromLTRB(
-                22,
-                24,
-                22,
-                MediaQuery.viewInsetsOf(context).bottom + 24,
+  Widget build(BuildContext context) => AuthFormPage(
+    title: 'Welcome Back',
+    subtitle: 'Sign in to continue managing your money.',
+    form: Consumer<AuthProvider>(
+      builder: (context, auth, _) => AutofillGroup(
+        child: Form(
+          key: _form,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PrototypeInput(
+                controller: _email,
+                label: 'Email',
+                placeholder: 'you@example.com',
+                icon: Icons.mail_outline_rounded,
+                keyboardType: TextInputType.emailAddress,
+                validator: Validators.email,
               ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - 48,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const BudgetBeeBrand(
-                      size: BrandSize.standard,
-                      centered: true,
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _password,
+                obscureText: _obscure,
+                textInputAction: TextInputAction.done,
+                autofillHints: const [AutofillHints.password],
+                validator: Validators.required,
+                onFieldSubmitted: (_) => auth.loading ? null : _signIn(auth),
+                style: const TextStyle(color: AuthTheme.textPrimary),
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  hintText: 'Enter your password',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  suffixIcon: IconButton(
+                    tooltip: _obscure ? 'Show password' : 'Hide password',
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
                     ),
-                    const SizedBox(height: 30),
-                    const Text(
-                      'Welcome Back',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 29,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Sign in to continue managing your money.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.darkMuted,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.darkSurface.withValues(alpha: .96),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: AppColors.darkBorder),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: .14),
-                            blurRadius: 42,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Consumer<AuthProvider>(
-                        builder: (context, auth, _) => Form(
-                          key: _form,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              PrototypeInput(
-                                controller: _email,
-                                label: 'Email',
-                                placeholder: 'you@example.com',
-                                icon: Icons.mail_outline_rounded,
-                                keyboardType: TextInputType.emailAddress,
-                                validator: Validators.email,
-                              ),
-                              const SizedBox(height: 14),
-                              TextFormField(
-                                controller: _password,
-                                obscureText: _obscure,
-                                textInputAction: TextInputAction.done,
-                                autofillHints: const [AutofillHints.password],
-                                validator: Validators.required,
-                                onFieldSubmitted: (_) =>
-                                    auth.loading ? null : _signIn(auth),
-                                decoration: InputDecoration(
-                                  labelText: 'Password',
-                                  hintText: 'Enter your password',
-                                  prefixIcon: const Icon(
-                                    Icons.lock_outline_rounded,
-                                  ),
-                                  suffixIcon: IconButton(
-                                    tooltip: _obscure
-                                        ? 'Show password'
-                                        : 'Hide password',
-                                    onPressed: () =>
-                                        setState(() => _obscure = !_obscure),
-                                    icon: Icon(
-                                      _obscure
-                                          ? Icons.visibility_outlined
-                                          : Icons.visibility_off_outlined,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: () => Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.forgotPassword,
-                                  ),
-                                  child: const Text('Forgot Password?'),
-                                ),
-                              ),
-                              if (auth.error != null) ...[
-                                Semantics(
-                                  liveRegion: true,
-                                  child: Text(
-                                    auth.error!,
-                                    style: const TextStyle(
-                                      color: AppColors.expense,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-                              PrototypeButton(
-                                label: auth.loading ? 'Signing In…' : 'Sign In',
-                                onPressed: auth.loading
-                                    ? null
-                                    : () => _signIn(auth),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        const Text(
-                          "Don't have an account?",
-                          style: TextStyle(color: AppColors.darkMuted),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pushNamed(context, AppRoutes.register),
-                          child: const Text('Sign Up'),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.forgotPassword),
+                  child: const Text('Forgot Password?'),
+                ),
+              ),
+              if (auth.error != null) ...[
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    auth.error!,
+                    style: const TextStyle(color: AppColors.expense),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              PrototypeButton(
+                label: auth.loading ? 'Signing In…' : 'Sign In',
+                onPressed: auth.loading ? null : () => _signIn(auth),
+              ),
+            ],
           ),
+        ),
+      ),
+    ),
+    footer: Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        const Text(
+          "Don't have an account?",
+          style: TextStyle(color: AuthTheme.textSecondary),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pushNamed(context, AppRoutes.register),
+          child: const Text('Sign Up'),
         ),
       ],
     ),
@@ -443,7 +373,7 @@ class BudgetBeePageIndicator extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           gradient: index == active ? AppColors.deepGradient : null,
-          color: index == active ? null : AppColors.darkBorder,
+          color: index == active ? null : AuthTheme.border,
           borderRadius: BorderRadius.circular(8),
         ),
       ),
@@ -483,9 +413,9 @@ class _OnboardingIllustration extends StatelessWidget {
     constraints: const BoxConstraints(maxWidth: 330),
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      color: AppColors.darkSurface,
+      color: AuthTheme.surface,
       borderRadius: BorderRadius.circular(30),
-      border: Border.all(color: AppColors.darkBorder),
+      border: Border.all(color: AuthTheme.border),
       boxShadow: [
         BoxShadow(
           color: AppColors.primary.withValues(alpha: .12),
@@ -521,7 +451,7 @@ class _TransactionComposition extends StatelessWidget {
         ],
       ),
       const SizedBox(height: 14),
-      Container(height: 1, color: AppColors.darkBorder),
+      Container(height: 1, color: AuthTheme.border),
       const SizedBox(height: 14),
       const Row(
         children: [
@@ -547,7 +477,10 @@ class _TransactionComposition extends StatelessWidget {
         child: const Center(
           child: Text(
             'Add transaction',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -595,7 +528,10 @@ class _ProgressComposition extends StatelessWidget {
           SizedBox(width: 12),
           Text(
             'Savings goal',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: AuthTheme.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -603,7 +539,7 @@ class _ProgressComposition extends StatelessWidget {
       const Text(
         '78%',
         style: TextStyle(
-          color: Colors.white,
+          color: AuthTheme.textPrimary,
           fontSize: 36,
           fontWeight: FontWeight.w800,
         ),
@@ -614,7 +550,7 @@ class _ProgressComposition extends StatelessWidget {
         child: const LinearProgressIndicator(
           value: .78,
           minHeight: 14,
-          backgroundColor: AppColors.darkBorder,
+          backgroundColor: AuthTheme.border,
         ),
       ),
       const SizedBox(height: 10),
@@ -623,7 +559,7 @@ class _ProgressComposition extends StatelessWidget {
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: AppColors.darkMuted,
+          color: AuthTheme.textSecondary,
           fontSize: 12,
           height: 1.35,
         ),
@@ -657,7 +593,7 @@ class _ArtLines extends StatelessWidget {
         width: 70,
         height: 9,
         decoration: BoxDecoration(
-          color: Colors.white70,
+          color: AuthTheme.textPrimary,
           borderRadius: BorderRadius.circular(5),
         ),
       ),
@@ -666,7 +602,7 @@ class _ArtLines extends StatelessWidget {
         width: 45,
         height: 7,
         decoration: BoxDecoration(
-          color: AppColors.darkBorder,
+          color: AuthTheme.border,
           borderRadius: BorderRadius.circular(5),
         ),
       ),
@@ -701,7 +637,7 @@ class _DonutPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = size.width * .19
       ..strokeCap = StrokeCap.round;
-    paint.color = AppColors.darkBorder;
+    paint.color = AuthTheme.border;
     canvas.drawArc(rect.deflate(size.width * .12), 0, 6.28, false, paint);
     paint.shader = AppColors.deepGradient.createShader(rect);
     canvas.drawArc(rect.deflate(size.width * .12), -1.57, 4.35, false, paint);

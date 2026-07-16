@@ -12,7 +12,7 @@ class AppSettingsService {
 
   final SharedPreferences _preferences;
 
-  String get themeMode => _preferences.getString(_themeModeKey) ?? 'system';
+  String get themeMode => _preferences.getString(_themeModeKey) ?? 'light';
   Future<void> setThemeMode(String value) =>
       _preferences.setString(_themeModeKey, value);
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/navigation/main_tab_scope.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/utils/validators.dart';
@@ -14,6 +15,15 @@ import '../../presentation/providers/app_providers.dart';
 import '../../presentation/widgets/app_widgets.dart';
 import '../../routes/app_routes.dart';
 import '../../features/analytics/presentation/premium_analytics_screen.dart';
+
+void _selectMainTab(BuildContext context, int index, String fallbackRoute) {
+  final scope = MainTabScope.maybeOf(context);
+  if (scope != null) {
+    scope.onSelect(index);
+  } else {
+    Navigator.pushReplacementNamed(context, fallbackRoute);
+  }
+}
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -769,10 +779,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     SectionHeader(
                       'Recent Transactions',
                       action: TextButton(
-                        onPressed: () => Navigator.pushNamed(
-                          context,
-                          AppRoutes.transactions,
-                        ),
+                        onPressed: () =>
+                            _selectMainTab(context, 1, AppRoutes.transactions),
                         child: Text('See all'),
                       ),
                     ),
@@ -854,8 +862,7 @@ class _DashboardHeader extends StatelessWidget {
                   const SizedBox(width: 10),
                   _HeaderIcon(
                     icon: Icons.settings_outlined,
-                    onTap: () =>
-                        Navigator.pushNamed(context, AppRoutes.settings),
+                    onTap: () => _selectMainTab(context, 3, AppRoutes.settings),
                   ),
                 ],
               ),
@@ -1151,6 +1158,7 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   final search = TextEditingController();
   String filter = 'all';
+  int? _editingTransactionId;
 
   @override
   void initState() {
@@ -1162,6 +1170,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     'search': search.text,
     'type': filter == 'all' ? null : filter,
   });
+
+  Future<void> _editTransaction(TransactionModel transaction) async {
+    if (_editingTransactionId != null || transaction.id <= 0) return;
+    setState(() => _editingTransactionId = transaction.id);
+    final updated = await Navigator.pushNamed<bool>(
+      context,
+      AppRoutes.editTransaction,
+      arguments: transaction,
+    );
+    if (!mounted) return;
+    setState(() => _editingTransactionId = null);
+    if (updated == true) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Transaction updated.')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -1245,6 +1270,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         AppRoutes.transactionDetails,
                         arguments: state.transactions[i],
                       ),
+                      onEdit: _editingTransactionId == null
+                          ? () => _editTransaction(state.transactions[i])
+                          : null,
                     ),
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemCount: state.transactions.length,
@@ -1714,23 +1742,110 @@ class _MethodPill extends StatelessWidget {
   );
 }
 
-class TransactionDetailsScreen extends StatelessWidget {
+class TransactionDetailsScreen extends StatefulWidget {
   const TransactionDetailsScreen({super.key});
   @override
+  State<TransactionDetailsScreen> createState() =>
+      _TransactionDetailsScreenState();
+}
+
+class _TransactionDetailsScreenState extends State<TransactionDetailsScreen> {
+  TransactionModel? _transaction;
+  bool _deleting = false;
+  bool _openingEditor = false;
+
+  TransactionModel get tx => _transaction!;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _transaction ??=
+        ModalRoute.of(context)!.settings.arguments as TransactionModel;
+  }
+
+  Future<void> _edit() async {
+    if (_openingEditor || _deleting || tx.id <= 0) return;
+    setState(() => _openingEditor = true);
+    final updated = await Navigator.pushNamed<bool>(
+      context,
+      AppRoutes.editTransaction,
+      arguments: tx,
+    );
+    if (!mounted) return;
+    setState(() => _openingEditor = false);
+    if (updated != true) return;
+    final transactions = context.read<TransactionProvider>().transactions;
+    final match = transactions.where((item) => item.id == tx.id);
+    if (match.isNotEmpty) setState(() => _transaction = match.first);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Transaction updated.')));
+  }
+
+  Future<void> _delete() async {
+    if (_deleting) return;
+    final colors = Theme.of(context).colorScheme;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Transaction?'),
+        content: const Text(
+          'This transaction will be permanently removed. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: colors.error,
+              foregroundColor: colors.onError,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _deleting = true);
+    final provider = context.read<TransactionProvider>();
+    final success = await provider.remove(tx.id);
+    if (!mounted) return;
+    if (!success) {
+      setState(() => _deleting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.error ?? 'Transaction could not be deleted.'),
+        ),
+      );
+      return;
+    }
+    await Future.wait([
+      context.read<DashboardProvider>().load(),
+      context.read<AccountProvider>().load(),
+      context.read<BudgetProvider>().load(),
+      context.read<ReportProvider>().load(),
+    ]);
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.pop(context, true);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Transaction deleted.')),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final tx = ModalRoute.of(context)!.settings.arguments as TransactionModel;
     final isIncome = tx.type == 'income';
     return Scaffold(
       appBar: PrototypeTopBar(
         title: 'Transaction Detail',
         onBack: () => Navigator.pop(context),
         right: TextButton(
-          onPressed: () => Navigator.pushNamed(
-            context,
-            AppRoutes.editTransaction,
-            arguments: tx,
-          ),
-          child: Text('Edit'),
+          onPressed: _openingEditor || _deleting ? null : _edit,
+          child: const Text('Edit'),
         ),
       ),
       body: ListView(
@@ -1806,11 +1921,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                 child: PrototypeButton(
                   label: '✏️ Edit',
                   variant: ButtonVariant.outline,
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    AppRoutes.editTransaction,
-                    arguments: tx,
-                  ),
+                  onPressed: _openingEditor || _deleting ? null : _edit,
                 ),
               ),
               const SizedBox(width: 10),
@@ -1818,32 +1929,7 @@ class TransactionDetailsScreen extends StatelessWidget {
                 child: PrototypeButton(
                   label: '🗑 Delete',
                   variant: ButtonVariant.expense,
-                  onPressed: () async {
-                    final ok = await showDialog<bool>(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: Text('Delete transaction?'),
-                        content: Text(
-                          'This will reverse the account balance effect.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text('Cancel'),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (ok == true && context.mounted) {
-                      await context.read<TransactionProvider>().remove(tx.id);
-                      await context.read<DashboardProvider>().load();
-                      if (context.mounted) Navigator.pop(context);
-                    }
-                  },
+                  onPressed: _deleting ? null : _delete,
                 ),
               ),
             ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/navigation/main_tab_scope.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../data/models/account_model.dart';
@@ -304,11 +305,27 @@ class PrototypeBottomNav extends StatelessWidget {
             children: items.map((item) {
               final isFab = item.$1 == AppRoutes.addTransaction;
               final isActive = active == item.$1;
+              final tabIndex = switch (item.$1) {
+                AppRoutes.dashboard => 0,
+                AppRoutes.transactions => 1,
+                AppRoutes.reports => 2,
+                AppRoutes.settings => 3,
+                _ => -1,
+              };
+              final tabScope = MainTabScope.maybeOf(context);
               return Expanded(
                 child: InkWell(
-                  onTap: () => isFab
-                      ? Navigator.pushNamed(context, item.$1)
-                      : Navigator.pushReplacementNamed(context, item.$1),
+                  onTap: isActive
+                      ? null
+                      : () {
+                          if (isFab) {
+                            Navigator.pushNamed(context, item.$1);
+                          } else if (tabScope != null && tabIndex >= 0) {
+                            tabScope.onSelect(tabIndex);
+                          } else {
+                            Navigator.pushReplacementNamed(context, item.$1);
+                          }
+                        },
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -376,9 +393,11 @@ class PrototypeTransactionCard extends StatelessWidget {
     super.key,
     required this.transaction,
     this.onTap,
+    this.onEdit,
   });
   final TransactionModel transaction;
   final VoidCallback? onTap;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -431,17 +450,47 @@ class PrototypeTransactionCard extends StatelessWidget {
               ],
             ),
           ),
-          Text(
-            isTransfer
-                ? CurrencyFormatter.format(transaction.amount)
-                : '${isIncome ? '+' : '-'}${CurrencyFormatter.format(transaction.amount)}',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: isTransfer
-                  ? AppColors.primary
-                  : (isIncome ? AppColors.income : AppColors.expense),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                isTransfer
+                    ? CurrencyFormatter.format(transaction.amount)
+                    : '${isIncome ? '+' : '-'}${CurrencyFormatter.format(transaction.amount)}',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: isTransfer
+                      ? AppColors.primary
+                      : (isIncome ? AppColors.income : AppColors.expense),
+                ),
+              ),
+              if (onEdit != null)
+                SizedBox(
+                  width: 34,
+                  height: 30,
+                  child: PopupMenuButton<String>(
+                    tooltip: 'Transaction actions',
+                    padding: EdgeInsets.zero,
+                    iconSize: 20,
+                    onSelected: (value) {
+                      if (value == 'edit') onEdit?.call();
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem<String>(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 19),
+                            SizedBox(width: 10),
+                            Text('Edit'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -812,7 +861,12 @@ class SummaryCard extends StatelessWidget {
 }
 
 class TransactionTile extends PrototypeTransactionCard {
-  const TransactionTile({super.key, required super.transaction, super.onTap});
+  const TransactionTile({
+    super.key,
+    required super.transaction,
+    super.onTap,
+    super.onEdit,
+  });
 }
 
 String iconForTransaction(TransactionModel tx) => tx.type == 'transfer'

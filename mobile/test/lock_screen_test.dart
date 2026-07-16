@@ -49,6 +49,32 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('App Lock surfaces follow light and dark application themes', (
+    tester,
+  ) async {
+    final lightService = await createService();
+    await pumpGate(tester, lightService);
+    final lightScaffolds = tester.widgetList<Scaffold>(find.byType(Scaffold));
+    expect(lightScaffolds.last.backgroundColor, const Color(0xFFFFF8F3));
+
+    final darkService = await createService();
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: darkService,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const AppLockGate(child: Scaffold(body: Text('Main app'))),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final darkScaffolds = tester.widgetList<Scaffold>(find.byType(Scaffold));
+    expect(
+      darkScaffolds.last.backgroundColor,
+      AppTheme.dark().colorScheme.surface,
+    );
+  });
+
   testWidgets('incorrect PIN stays locked and displays validation', (
     tester,
   ) async {
