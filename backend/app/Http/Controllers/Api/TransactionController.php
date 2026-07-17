@@ -10,6 +10,7 @@ use App\Services\TransactionService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class TransactionController extends Controller
@@ -20,33 +21,60 @@ class TransactionController extends Controller
 
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'type' => ['nullable', 'in:income,expense,transfer'],
+            'category_id' => ['nullable', 'integer'],
+            'account_id' => ['nullable', 'integer'],
+            'payment_method' => ['nullable', 'string', 'max:255'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'min_amount' => ['nullable', 'numeric', 'min:0'],
+            'max_amount' => ['nullable', 'numeric', 'min:0'],
+            'sort' => ['nullable', 'in:date_desc,date_asc,amount_desc,amount_asc'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'between:1,100'],
+        ]);
+        if (isset($validated['min_amount'], $validated['max_amount'])
+            && (float) $validated['min_amount'] > (float) $validated['max_amount']) {
+            throw ValidationException::withMessages([
+                'max_amount' => ['The maximum amount must be greater than or equal to the minimum amount.'],
+            ]);
+        }
         $query = $request->user()->transactions()->with(['account', 'category', 'fromAccount', 'toAccount']);
 
-        foreach (['type', 'category_id', 'account_id', 'payment_method'] as $filter) {
-            if ($request->filled($filter)) {
-                $query->where($filter, $request->$filter);
+        foreach (['type', 'category_id', 'payment_method'] as $filter) {
+            if (! empty($validated[$filter])) {
+                $query->where($filter, $validated[$filter]);
             }
         }
-        if ($request->filled('from')) {
-            $query->whereDate('transaction_date', '>=', $request->from);
+        if (! empty($validated['account_id'])) {
+            $accountId = (int) $validated['account_id'];
+            $query->where(fn ($accountQuery) => $accountQuery
+                ->where('account_id', $accountId)
+                ->orWhere('from_account_id', $accountId)
+                ->orWhere('to_account_id', $accountId));
         }
-        if ($request->filled('to')) {
-            $query->whereDate('transaction_date', '<=', $request->to);
+        if (! empty($validated['from'])) {
+            $query->whereDate('transaction_date', '>=', $validated['from']);
         }
-        if ($request->filled('min_amount')) {
-            $query->where('amount', '>=', (float) $request->min_amount);
+        if (! empty($validated['to'])) {
+            $query->whereDate('transaction_date', '<=', $validated['to']);
         }
-        if ($request->filled('max_amount')) {
-            $query->where('amount', '<=', (float) $request->max_amount);
+        if (isset($validated['min_amount'])) {
+            $query->where('amount', '>=', (float) $validated['min_amount']);
         }
-        if ($request->filled('search')) {
-            $search = $request->search;
+        if (isset($validated['max_amount'])) {
+            $query->where('amount', '<=', (float) $validated['max_amount']);
+        }
+        if (! empty($validated['search'])) {
+            $search = addcslashes($validated['search'], '%_\\');
             $query->where(fn($q) => $q->where('title', 'like', "%{$search}%")->orWhere('note', 'like', "%{$search}%"));
         }
 
-        $this->applySort($query, $request->input('sort', 'date_desc'));
+        $this->applySort($query, $validated['sort'] ?? 'date_desc');
 
-        $perPage = min(max((int) $request->input('per_page', 30), 1), 100);
+        $perPage = (int) ($validated['per_page'] ?? 30);
         $paginated = $query->paginate($perPage);
 
         return $this->success([
@@ -92,6 +120,7 @@ class TransactionController extends Controller
             'transaction_id' => $transaction->id,
             'transaction_user_id' => $transaction->user_id,
             'authenticated_user_id' => $user?->id,
+            'request_method' => $request->method(),
             'request_ip' => $request->ip(),
         ]);
 
@@ -113,6 +142,7 @@ class TransactionController extends Controller
                 'transaction_id' => $transaction->id,
                 'authenticated_user_id' => $user->id,
                 'validated_fields' => array_keys($validatedData),
+                'request_method' => $request->method(),
             ]);
 
             $updatedTransaction = $this->service->update(
@@ -140,6 +170,7 @@ class TransactionController extends Controller
                 'message' => $exception->getMessage(),
                 'file' => $exception->getFile(),
                 'line' => $exception->getLine(),
+                'trace' => $exception->getTraceAsString(),
             ]);
 
             throw $exception;
@@ -198,6 +229,7 @@ class TransactionController extends Controller
                 'message' => $exception->getMessage(),
                 'file' => $exception->getFile(),
                 'line' => $exception->getLine(),
+                'trace' => $exception->getTraceAsString(),
             ]);
 
             throw $exception;

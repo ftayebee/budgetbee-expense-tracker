@@ -9,9 +9,15 @@ class Category extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'name', 'type', 'icon', 'color', 'is_default'];
+    protected $fillable = [
+        'user_id', 'source_category_id', 'name', 'type', 'icon', 'color',
+        'is_default', 'is_hidden',
+    ];
 
-    protected $casts = ['is_default' => 'boolean'];
+    protected $casts = [
+        'is_default' => 'boolean',
+        'is_hidden' => 'boolean',
+    ];
 
     public function user() { return $this->belongsTo(User::class); }
     public function transactions() { return $this->hasMany(Transaction::class); }

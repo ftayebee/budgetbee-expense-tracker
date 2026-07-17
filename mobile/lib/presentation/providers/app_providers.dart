@@ -122,14 +122,23 @@ class AccountProvider extends Loadable {
   final AccountRepository repo;
   List<AccountModel> accounts = [];
   Future<void> load() async => accounts = await run(repo.all) ?? accounts;
-  Future<void> save(Map<String, dynamic> data, [int? id]) async {
-    await run(() => id == null ? repo.create(data) : repo.update(id, data));
+  Future<bool> save(Map<String, dynamic> data, [int? id]) async {
+    final result = await run(
+      () => id == null ? repo.create(data) : repo.update(id, data),
+    );
+    if (result == null) return false;
     await load();
+    return true;
   }
 
-  Future<void> remove(int id) async {
-    await run(() => repo.delete(id));
+  Future<bool> remove(int id) async {
+    final result = await run(() async {
+      await repo.delete(id);
+      return true;
+    });
+    if (result != true) return false;
     await load();
+    return true;
   }
 }
 
@@ -137,18 +146,28 @@ class CategoryProvider extends Loadable {
   CategoryProvider(this.repo);
   final CategoryRepository repo;
   List<CategoryModel> categories = [];
+  CategoryModel? lastSaved;
   Future<void> load({String? type}) async =>
       categories = await run(() => repo.all(type: type)) ?? categories;
   List<CategoryModel> byType(String type) =>
       categories.where((c) => c.type == type).toList();
-  Future<void> save(Map<String, dynamic> data, [int? id]) async {
-    await run(() => id == null ? repo.create(data) : repo.update(id, data));
+  Future<bool> save(Map<String, dynamic> data, [int? id]) async {
+    lastSaved = await run(
+      () => id == null ? repo.create(data) : repo.update(id, data),
+    );
+    if (lastSaved == null) return false;
     await load();
+    return true;
   }
 
-  Future<void> remove(int id) async {
-    await run(() => repo.delete(id));
+  Future<bool> remove(int id) async {
+    final result = await run(() async {
+      await repo.delete(id);
+      return true;
+    });
+    if (result != true) return false;
     await load();
+    return true;
   }
 }
 
@@ -156,9 +175,51 @@ class TransactionProvider extends Loadable {
   TransactionProvider(this.repo);
   final TransactionRepository repo;
   List<TransactionModel> transactions = [];
+  Map<String, dynamic> filters = {};
+  int currentPage = 0;
+  int lastPage = 1;
+  int total = 0;
+  bool loadingMore = false;
   int revision = 0;
-  Future<void> load([Map<String, dynamic>? filters]) async =>
-      transactions = await run(() => repo.all(filters)) ?? transactions;
+
+  bool get hasMore => currentPage < lastPage;
+
+  Future<void> load([Map<String, dynamic>? nextFilters]) async {
+    if (nextFilters != null) {
+      filters = Map<String, dynamic>.from(nextFilters)
+        ..removeWhere(
+          (_, value) => value == null || (value is String && value.isEmpty),
+        );
+    }
+    final query = {...filters, 'page': 1};
+    final page = await run(() => repo.page(query));
+    if (page == null) return;
+    transactions = page.items;
+    currentPage = page.currentPage;
+    lastPage = page.lastPage;
+    total = page.total;
+  }
+
+  Future<void> loadMore() async {
+    if (loading || loadingMore || !hasMore) return;
+    loadingMore = true;
+    notifyListeners();
+    try {
+      final page = await repo.page({...filters, 'page': currentPage + 1});
+      final known = transactions.map((item) => item.id).toSet();
+      transactions.addAll(page.items.where((item) => known.add(item.id)));
+      currentPage = page.currentPage;
+      lastPage = page.lastPage;
+      total = page.total;
+    } on ApiException catch (exception) {
+      error = exception.message;
+    } finally {
+      loadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> clearFilters() => load({});
   Future<bool> save(Map<String, dynamic> data, [int? id]) async {
     TransactionModel? saved;
     final success = await run(() async {
@@ -201,14 +262,23 @@ class BudgetProvider extends Loadable {
   final BudgetRepository repo;
   List<BudgetModel> budgets = [];
   Future<void> load() async => budgets = await run(repo.all) ?? budgets;
-  Future<void> save(Map<String, dynamic> data) async {
-    await run(() => repo.create(data));
+  Future<bool> save(Map<String, dynamic> data, [int? id]) async {
+    final result = await run(
+      () => id == null ? repo.create(data) : repo.update(id, data),
+    );
+    if (result == null) return false;
     await load();
+    return true;
   }
 
-  Future<void> remove(int id) async {
-    await run(() => repo.delete(id));
+  Future<bool> remove(int id) async {
+    final result = await run(() async {
+      await repo.delete(id);
+      return true;
+    });
+    if (result != true) return false;
     await load();
+    return true;
   }
 }
 

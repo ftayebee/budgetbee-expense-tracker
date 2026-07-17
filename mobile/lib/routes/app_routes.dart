@@ -14,6 +14,8 @@ import '../presentation/screens/auth/light_auth_form_screens.dart';
 import '../core/theme/auth_theme.dart';
 import '../presentation/screens/all_screens.dart';
 import '../data/models/transaction_model.dart';
+import '../data/models/category_model.dart';
+import '../data/models/budget_model.dart';
 
 class AppRoutes {
   static const splash = '/';
@@ -71,6 +73,26 @@ class AppRoutes {
       if (transaction is! TransactionModel || transaction.id <= 0) return null;
       return AppPageTransitions.route<bool>(
         builder: (_) => CompactAddTransactionScreen(transaction: transaction),
+        settings: routeSettings,
+        style: AppTransitionStyle.modal,
+      );
+    }
+    if (routeSettings.name == addCategory) {
+      final argument = routeSettings.arguments;
+      return AppPageTransitions.route<bool>(
+        builder: (_) => SafeAddCategoryScreen(
+          category: argument is CategoryModel ? argument : null,
+        ),
+        settings: routeSettings,
+        style: AppTransitionStyle.modal,
+      );
+    }
+    if (routeSettings.name == addBudget) {
+      final argument = routeSettings.arguments;
+      return AppPageTransitions.route<bool>(
+        builder: (_) => SafeAddBudgetScreen(
+          budget: argument is BudgetModel ? argument : null,
+        ),
         settings: routeSettings,
         style: AppTransitionStyle.modal,
       );

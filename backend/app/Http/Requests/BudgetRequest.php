@@ -10,12 +10,29 @@ class BudgetRequest extends FormRequest
 {
     public function authorize(): bool { return true; }
 
+    protected function prepareForValidation(): void
+    {
+        $year = (int) ($this->input('year') ?: now()->year);
+        $month = (int) ($this->input('month') ?: now()->month);
+        $this->merge([
+            'name' => $this->input('name') ?: 'Category Budget',
+            'start_date' => $this->input('start_date') ?: sprintf('%04d-%02d-01', $year, $month),
+            'alert_threshold' => $this->input('alert_threshold') ?: 80,
+            'month' => $month,
+            'year' => $year,
+        ]);
+    }
+
     public function rules(): array
     {
         return [
             'category_id' => ['required', 'integer'],
+            'name' => ['required', 'string', 'max:120'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'period' => ['required', 'in:daily,weekly,monthly,yearly'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'alert_threshold' => ['required', 'integer', 'between:1,100'],
             'month' => ['required', 'integer', 'between:1,12'],
             'year' => ['required', 'integer', 'between:2000,2100'],
         ];

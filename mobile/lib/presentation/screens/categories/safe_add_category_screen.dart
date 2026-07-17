@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/models/category_model.dart';
 import '../../providers/app_providers.dart';
 import '../../widgets/app_widgets.dart';
 
 class SafeAddCategoryScreen extends StatefulWidget {
-  const SafeAddCategoryScreen({super.key});
+  const SafeAddCategoryScreen({super.key, this.category});
+
+  final CategoryModel? category;
 
   @override
   State<SafeAddCategoryScreen> createState() => _SafeAddCategoryScreenState();
@@ -16,9 +21,11 @@ class SafeAddCategoryScreen extends StatefulWidget {
 class _SafeAddCategoryScreenState extends State<SafeAddCategoryScreen> {
   final form = GlobalKey<FormState>();
   final name = TextEditingController();
+  final monthlyBudget = TextEditingController();
   String selectedIcon = '🛒';
   Color selectedColor = AppColors.income;
   String type = 'expense';
+  int? _budgetId;
   final icons = const [
     '🛒',
     '🚗',
@@ -49,19 +56,53 @@ class _SafeAddCategoryScreenState extends State<SafeAddCategoryScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => context.read<CategoryProvider>().load());
+    final category = widget.category;
+    if (category != null) {
+      name.text = category.name;
+      selectedIcon = category.icon ?? selectedIcon;
+      selectedColor = _parseColor(category.color) ?? selectedColor;
+      type = category.type;
+    }
+    Future.microtask(() async {
+      await Future.wait([
+        context.read<CategoryProvider>().load(),
+        context.read<BudgetProvider>().load(),
+      ]);
+      if (!mounted || widget.category == null) return;
+      final now = DateTime.now();
+      final matches = context.read<BudgetProvider>().budgets.where(
+        (budget) =>
+            budget.category?.id == widget.category!.id &&
+            budget.month == now.month &&
+            budget.year == now.year,
+      );
+      if (matches.isNotEmpty) {
+        final budget = matches.first;
+        setState(() {
+          _budgetId = budget.id;
+          monthlyBudget.text = _formatAmount(budget.amount);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    name.dispose();
+    monthlyBudget.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     resizeToAvoidBottomInset: true,
     appBar: PrototypeTopBar(
-      title: 'Add Category',
+      title: widget.category == null ? 'Add Category' : 'Edit Category',
       onBack: () => Navigator.pop(context),
     ),
     body: SafeArea(
-      child: Consumer<CategoryProvider>(
-        builder: (_, state, __) => Form(
+      child: Consumer2<CategoryProvider, BudgetProvider>(
+        builder: (_, state, budgets, __) => Form(
           key: form,
           child: ListView(
             padding: EdgeInsets.fromLTRB(
@@ -161,30 +202,73 @@ class _SafeAddCategoryScreenState extends State<SafeAddCategoryScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+              if (type == 'expense') ...[
+                PrototypeInput(
+                  controller: monthlyBudget,
+                  label: 'Monthly Budget (Optional)',
+                  prefix: '${CurrencyFormatter.symbol()} ',
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) return null;
+                    return Validators.amount(value);
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
               if (state.error != null)
                 Text(state.error!, style: TextStyle(color: AppColors.expense)),
+              if (budgets.error != null)
+                Text(
+                  budgets.error!,
+                  style: const TextStyle(color: AppColors.expense),
+                ),
               PrototypeButton(
-                label: 'Save Category',
-                onPressed: state.loading
+                label: widget.category == null
+                    ? 'Save Category'
+                    : 'Update Category',
+                onPressed: state.loading || budgets.loading
                     ? null
                     : () async {
                         if (!form.currentState!.validate()) return;
                         if (state.categories.any(
                           (c) =>
+                              c.id != widget.category?.id &&
                               c.type == type &&
                               c.name.toLowerCase() ==
                                   name.text.trim().toLowerCase(),
                         ))
                           return;
-                        await state.save({
+                        final success = await state.save({
                           'name': name.text.trim(),
                           'type': type,
                           'icon': selectedIcon,
                           'color':
                               '#${selectedColor.toARGB32().toRadixString(16).substring(2)}',
-                        });
-                        if (mounted && state.error == null)
-                          Navigator.pop(context);
+                        }, widget.category?.id);
+                        if (!mounted || !success) return;
+                        final saved = state.lastSaved;
+                        if (type == 'expense' &&
+                            saved != null &&
+                            monthlyBudget.text.trim().isNotEmpty) {
+                          final now = DateTime.now();
+                          final budgetSaved = await budgets.save({
+                            'name': '${name.text.trim()} Budget',
+                            'category_id': saved.id,
+                            'amount': double.parse(monthlyBudget.text.trim()),
+                            'period': 'monthly',
+                            'start_date': DateFormatter.api(
+                              DateTime(now.year, now.month),
+                            ),
+                            'end_date': null,
+                            'alert_threshold': 80,
+                            'month': now.month,
+                            'year': now.year,
+                          }, _budgetId);
+                          if (!mounted || !budgetSaved) return;
+                        }
+                        Navigator.pop(context, true);
                       },
               ),
             ],
@@ -193,6 +277,17 @@ class _SafeAddCategoryScreenState extends State<SafeAddCategoryScreen> {
       ),
     ),
   );
+}
+
+String _formatAmount(double value) => value == value.truncateToDouble()
+    ? value.toStringAsFixed(0)
+    : value.toStringAsFixed(2);
+
+Color? _parseColor(String? value) {
+  final hex = value?.replaceFirst('#', '');
+  if (hex == null || hex.length != 6) return null;
+  final parsed = int.tryParse('FF$hex', radix: 16);
+  return parsed == null ? null : Color(parsed);
 }
 
 class _InlineChoices extends StatelessWidget {

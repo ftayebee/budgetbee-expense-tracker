@@ -57,11 +57,14 @@ class ApiErrorMapper {
       403 => serverMessage ?? 'You do not have permission to do that.',
       404 => serverMessage ?? 'This transaction could not be found.',
       405 => 'This operation is not supported by the server.',
+      409 => serverMessage ?? 'This item is in use and cannot be changed.',
       422 =>
         _firstValidationMessage(errors) ??
             serverMessage ??
             'Please check the transaction details and try again.',
-      >= 500 => 'The server could not complete the request. Please try again.',
+      >= 500 =>
+        serverMessage ??
+            'The server could not complete the request. Please try again.',
       _ => serverMessage ?? 'The request could not be completed.',
     };
   }

@@ -112,11 +112,35 @@ class CategoryRepository {
 class TransactionRepository {
   TransactionRepository(this.client);
   final ApiClient client;
-  Future<List<TransactionModel>> all([Map<String, dynamic>? filters]) async =>
-      _collection(
-        await client.get('/transactions', query: filters),
-        TransactionModel.fromJson,
+  Future<TransactionPage> page([Map<String, dynamic>? filters]) async {
+    final response = await client.get('/transactions', query: filters);
+    if (response is Map && response['data'] is List) {
+      final meta = response['meta'] is Map
+          ? Map<String, dynamic>.from(response['meta'] as Map)
+          : const <String, dynamic>{};
+      return TransactionPage(
+        items: (response['data'] as List)
+            .map(
+              (item) => TransactionModel.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList(),
+        currentPage: _int(meta['current_page'], 1),
+        lastPage: _int(meta['last_page'], 1),
+        total: _int(meta['total'], 0),
       );
+    }
+    return TransactionPage(
+      items: _collection(response, TransactionModel.fromJson),
+      currentPage: 1,
+      lastPage: 1,
+      total: 0,
+    );
+  }
+
+  Future<List<TransactionModel>> all([Map<String, dynamic>? filters]) async =>
+      (await page(filters)).items;
   Future<TransactionModel> create(Map<String, dynamic> data) async =>
       TransactionModel.fromJson(await client.post('/transactions', data: data));
   Future<TransactionModel?> update(int id, Map<String, dynamic> data) async {
@@ -129,6 +153,20 @@ class TransactionRepository {
   Future<void> delete(int id) => client.delete('/transactions/$id');
 }
 
+class TransactionPage {
+  const TransactionPage({
+    required this.items,
+    required this.currentPage,
+    required this.lastPage,
+    required this.total,
+  });
+
+  final List<TransactionModel> items;
+  final int currentPage;
+  final int lastPage;
+  final int total;
+}
+
 class BudgetRepository {
   BudgetRepository(this.client);
   final ApiClient client;
@@ -136,6 +174,8 @@ class BudgetRepository {
       _collection(await client.get('/budgets'), BudgetModel.fromJson);
   Future<BudgetModel> create(Map<String, dynamic> data) async =>
       BudgetModel.fromJson(await client.post('/budgets', data: data));
+  Future<BudgetModel> update(int id, Map<String, dynamic> data) async =>
+      BudgetModel.fromJson(await client.put('/budgets/$id', data: data));
   Future<void> delete(int id) => client.delete('/budgets/$id');
 }
 
@@ -197,3 +237,6 @@ List<T> _collection<T>(
       ? data.map((e) => fromJson(Map<String, dynamic>.from(e as Map))).toList()
       : [];
 }
+
+int _int(dynamic value, int fallback) =>
+    value is int ? value : int.tryParse('$value') ?? fallback;

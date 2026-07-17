@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/models/budget_model.dart';
 import '../../providers/app_providers.dart';
 import '../../widgets/app_widgets.dart';
 
 class SafeAddBudgetScreen extends StatefulWidget {
-  const SafeAddBudgetScreen({super.key});
+  const SafeAddBudgetScreen({super.key, this.budget});
+
+  final BudgetModel? budget;
 
   @override
   State<SafeAddBudgetScreen> createState() => _SafeAddBudgetScreenState();
@@ -16,25 +20,46 @@ class SafeAddBudgetScreen extends StatefulWidget {
 
 class _SafeAddBudgetScreenState extends State<SafeAddBudgetScreen> {
   final form = GlobalKey<FormState>();
+  final name = TextEditingController();
   final amount = TextEditingController();
+  final threshold = TextEditingController(text: '80');
   int? categoryId;
   String period = 'monthly';
-  int month = DateTime.now().month;
-  int year = DateTime.now().year;
+  DateTime startDate = DateTime.now();
+  DateTime? endDate;
+  String? selectionError;
 
   @override
   void initState() {
     super.initState();
+    final budget = widget.budget;
+    if (budget != null) {
+      name.text = budget.name;
+      amount.text = budget.amount.toStringAsFixed(2);
+      threshold.text = '${budget.alertThreshold}';
+      categoryId = budget.category?.id;
+      period = budget.period;
+      startDate = budget.startDate ?? DateTime(budget.year, budget.month);
+      endDate = budget.endDate;
+    }
     Future.microtask(
       () => context.read<CategoryProvider>().load(type: 'expense'),
     );
   }
 
   @override
+  void dispose() {
+    name.dispose();
+    amount.dispose();
+    threshold.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => Scaffold(
     resizeToAvoidBottomInset: true,
     appBar: PrototypeTopBar(
-      title: 'Set Budget',
+      title: widget.budget == null ? 'Add Budget' : 'Edit Budget',
       onBack: () => Navigator.pop(context),
     ),
     body: SafeArea(
@@ -48,20 +73,29 @@ class _SafeAddBudgetScreenState extends State<SafeAddBudgetScreen> {
                 16,
                 16,
                 16,
-                MediaQuery.of(context).viewInsets.bottom + 24,
+                MediaQuery.viewInsetsOf(context).bottom + 24,
               ),
               children: [
+                PrototypeInput(
+                  controller: name,
+                  label: 'Budget Name',
+                  placeholder: 'e.g. Monthly groceries',
+                  validator: Validators.required,
+                ),
+                const SizedBox(height: 14),
                 CustomDropdown<int>(
                   value: expenseCats.any((c) => c.id == categoryId)
                       ? categoryId
                       : null,
                   label: 'Expense Category',
-                  onChanged: (v) => setState(() => categoryId = v),
+                  onChanged: (value) => setState(() => categoryId = value),
                   items: expenseCats
                       .map(
-                        (c) => DropdownMenuItem(
-                          value: c.id,
-                          child: Text('${iconForCategory(c)} ${c.name}'),
+                        (category) => DropdownMenuItem(
+                          value: category.id,
+                          child: Text(
+                            '${iconForCategory(category)} ${category.name}',
+                          ),
                         ),
                       )
                       .toList(),
@@ -71,14 +105,17 @@ class _SafeAddBudgetScreenState extends State<SafeAddBudgetScreen> {
                   controller: amount,
                   label: 'Budget Amount',
                   prefix: '${CurrencyFormatter.symbol()} ',
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   validator: Validators.amount,
                 ),
                 const SizedBox(height: 14),
                 CustomDropdown<String>(
                   value: period,
                   label: 'Period',
-                  onChanged: (v) => setState(() => period = v ?? 'monthly'),
+                  onChanged: (value) =>
+                      setState(() => period = value ?? 'monthly'),
                   items: const [
                     DropdownMenuItem(value: 'daily', child: Text('Daily')),
                     DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
@@ -87,88 +124,135 @@ class _SafeAddBudgetScreenState extends State<SafeAddBudgetScreen> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  'Month',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: context.appMuted,
-                  ),
+                _DateField(
+                  label: 'Start Date',
+                  value: startDate,
+                  onTap: () => _pickDate(isEnd: false),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: List.generate(12, (i) {
-                    final selected = month == i + 1;
-                    return InkWell(
-                      onTap: () => setState(() => month = i + 1),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        width: 44,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? context.appPrimarySoft
-                              : context.appCard,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: selected
-                                ? AppColors.primary
-                                : context.appBorder,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Text(
-                          '${i + 1}',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: selected
-                                ? AppColors.primary
-                                : context.appMuted,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
+                const SizedBox(height: 14),
+                _DateField(
+                  label: 'End Date (Optional)',
+                  value: endDate,
+                  allowClear: true,
+                  onTap: () => _pickDate(isEnd: true),
+                  onClear: () => setState(() => endDate = null),
                 ),
                 const SizedBox(height: 14),
                 PrototypeInput(
-                  controller: TextEditingController(text: '$year'),
-                  label: 'Year',
+                  controller: threshold,
+                  label: 'Alert Threshold (%)',
                   keyboardType: TextInputType.number,
+                  validator: (value) {
+                    final parsed = int.tryParse(value ?? '');
+                    if (parsed == null || parsed < 1 || parsed > 100) {
+                      return 'Enter a threshold from 1 to 100.';
+                    }
+                    return null;
+                  },
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
+                if (selectionError != null)
+                  Text(
+                    selectionError!,
+                    style: const TextStyle(color: AppColors.expense),
+                  ),
                 if (budgets.error != null)
                   Text(
                     budgets.error!,
-                    style: TextStyle(color: AppColors.expense),
+                    style: const TextStyle(color: AppColors.expense),
                   ),
+                const SizedBox(height: 6),
                 PrototypeButton(
-                  label: 'Save Budget',
-                  onPressed: budgets.loading
-                      ? null
-                      : () async {
-                          if (!form.currentState!.validate() ||
-                              categoryId == null)
-                            return;
-                          await budgets.save({
-                            'category_id': categoryId,
-                            'amount': double.parse(amount.text),
-                            'period': period,
-                            'month': month,
-                            'year': year,
-                          });
-                          if (mounted && budgets.error == null)
-                            Navigator.pop(context);
-                        },
+                  label: budgets.loading
+                      ? 'Saving…'
+                      : widget.budget == null
+                      ? 'Add Budget'
+                      : 'Update Budget',
+                  onPressed: budgets.loading ? null : _save,
                 ),
               ],
             ),
           );
         },
+      ),
+    ),
+  );
+
+  Future<void> _pickDate({required bool isEnd}) async {
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      initialDate: isEnd ? (endDate ?? startDate) : startDate,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (isEnd) {
+        endDate = picked;
+      } else {
+        startDate = picked;
+        if (endDate != null && endDate!.isBefore(picked)) endDate = null;
+      }
+    });
+  }
+
+  Future<void> _save() async {
+    if (!form.currentState!.validate()) return;
+    if (categoryId == null) {
+      setState(() => selectionError = 'Choose an expense category.');
+      return;
+    }
+    setState(() => selectionError = null);
+    final provider = context.read<BudgetProvider>();
+    final success = await provider.save({
+      'name': name.text.trim(),
+      'category_id': categoryId,
+      'amount': double.parse(amount.text),
+      'period': period,
+      'start_date': DateFormat('yyyy-MM-dd').format(startDate),
+      'end_date': endDate == null
+          ? null
+          : DateFormat('yyyy-MM-dd').format(endDate!),
+      'alert_threshold': int.parse(threshold.text),
+      'month': startDate.month,
+      'year': startDate.year,
+    }, widget.budget?.id);
+    if (!mounted || !success) return;
+    await Future.wait([
+      context.read<ReportProvider>().load(),
+      context.read<DashboardProvider>().load(),
+    ]);
+    if (mounted) Navigator.pop(context, true);
+  }
+}
+
+class _DateField extends StatelessWidget {
+  const _DateField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.allowClear = false,
+    this.onClear,
+  });
+
+  final String label;
+  final DateTime? value;
+  final VoidCallback onTap;
+  final bool allowClear;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: allowClear && value != null
+            ? IconButton(onPressed: onClear, icon: const Icon(Icons.close))
+            : const Icon(Icons.calendar_month_outlined),
+      ),
+      child: Text(
+        value == null ? 'No end date' : DateFormat('d MMM yyyy').format(value!),
       ),
     ),
   );

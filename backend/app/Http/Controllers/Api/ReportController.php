@@ -97,19 +97,31 @@ class ReportController extends Controller
             ->whereBetween('year', [$from->year, $to->year])
             ->get();
 
-        $balanceTransactions = $request->user()->transactions()
-            ->whereIn('type', ['income', 'expense']);
+        $balanceTransactions = $request->user()->transactions();
         $accountBalances = $request->user()->accounts();
         if (! empty($validated['account_id'])) {
-            $balanceTransactions->where('account_id', $validated['account_id']);
-            $accountBalances->whereKey($validated['account_id']);
+            $accountId = (int) $validated['account_id'];
+            $balanceTransactions->where(fn ($query) => $query
+                ->where('account_id', $accountId)
+                ->orWhere('from_account_id', $accountId)
+                ->orWhere('to_account_id', $accountId));
+            $accountBalances->whereKey($accountId);
         }
+        $balanceChange = function ($transactions, callable $dateScope) use ($validated): float {
+            $scoped = $dateScope(clone $transactions);
+            $change = (float) (clone $scoped)->where('type', 'income')->sum('amount')
+                - (float) (clone $scoped)->where('type', 'expense')->sum('amount');
+            if (! empty($validated['account_id'])) {
+                $accountId = (int) $validated['account_id'];
+                $change += (float) (clone $scoped)->where('type', 'transfer')->where('to_account_id', $accountId)->sum('amount')
+                    - (float) (clone $scoped)->where('type', 'transfer')->where('from_account_id', $accountId)->sum('amount');
+            }
+            return $change;
+        };
         $openingBalance = (float) $accountBalances->sum('opening_balance')
-            + (float) (clone $balanceTransactions)->whereDate('transaction_date', '<', $from->toDateString())->where('type', 'income')->sum('amount')
-            - (float) (clone $balanceTransactions)->whereDate('transaction_date', '<', $from->toDateString())->where('type', 'expense')->sum('amount');
+            + $balanceChange($balanceTransactions, fn ($query) => $query->whereDate('transaction_date', '<', $from->toDateString()));
         $closingBalance = $openingBalance
-            + (float) (clone $balanceTransactions)->whereBetween('transaction_date', [$from->toDateString(), $to->toDateString()])->where('type', 'income')->sum('amount')
-            - (float) (clone $balanceTransactions)->whereBetween('transaction_date', [$from->toDateString(), $to->toDateString()])->where('type', 'expense')->sum('amount');
+            + $balanceChange($balanceTransactions, fn ($query) => $query->whereBetween('transaction_date', [$from->toDateString(), $to->toDateString()]));
 
         return $this->success([
             'from' => $from->toDateString(),

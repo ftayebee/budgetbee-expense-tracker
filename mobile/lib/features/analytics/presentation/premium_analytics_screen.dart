@@ -4,12 +4,14 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../../presentation/screens/transactions/compact_add_transaction_screen.dart';
 import '../../../presentation/widgets/app_widgets.dart';
+import '../../../presentation/providers/app_providers.dart';
 import '../../../routes/app_routes.dart';
 import '../domain/analytics_models.dart';
 import 'analytics_controller.dart';
@@ -502,9 +504,55 @@ class _AnalyticsScroll extends StatelessWidget {
   );
 }
 
-class _OverviewTab extends StatelessWidget {
+class _OverviewTab extends StatefulWidget {
   const _OverviewTab({required this.snapshot});
   final AnalyticsSnapshot snapshot;
+
+  @override
+  State<_OverviewTab> createState() => _OverviewTabState();
+}
+
+class _OverviewTabState extends State<_OverviewTab> {
+  static const _storageKey = 'analytics_report_card_order_v1';
+  static const _defaults = [
+    'summary',
+    'comparison',
+    'income_expense',
+    'cash_flow',
+    'categories',
+    'budget',
+    'accounts',
+    'trends',
+  ];
+  List<String> order = [..._defaults];
+  bool customizing = false;
+
+  AnalyticsSnapshot get snapshot => widget.snapshot;
+
+  @override
+  void initState() {
+    super.initState();
+    _restore();
+  }
+
+  Future<void> _restore() async {
+    final saved = (await SharedPreferences.getInstance()).getStringList(
+      _storageKey,
+    );
+    if (!mounted || saved == null) return;
+    final valid = saved.where(_defaults.contains).toList();
+    for (final id in _defaults) {
+      if (!valid.contains(id)) valid.add(id);
+    }
+    setState(() => order = valid);
+  }
+
+  Future<void> _save() async {
+    await (await SharedPreferences.getInstance()).setStringList(
+      _storageKey,
+      order,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -520,38 +568,144 @@ class _OverviewTab extends StatelessWidget {
         ],
       );
     }
-    return _AnalyticsScroll(
-      children: [
-        _SummaryGrid(snapshot: snapshot),
-        const SizedBox(height: 14),
-        _ComparisonCard(snapshot: snapshot),
-        const SizedBox(height: 14),
-        _ChartCard(
-          title: 'Daily income vs expense',
-          subtitle: 'Tap a bar to inspect its value',
-          child: _DailyBarChart(days: snapshot.daily),
+    return RefreshIndicator(
+      onRefresh: context.read<AnalyticsController>().refresh,
+      child: ReorderableListView.builder(
+        padding: const EdgeInsets.all(16),
+        buildDefaultDragHandles: false,
+        header: Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Report layout',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+              ),
+            ),
+            if (customizing)
+              TextButton(
+                onPressed: () {
+                  setState(() => order = [..._defaults]);
+                  _save();
+                },
+                child: const Text('Reset to Default'),
+              ),
+            TextButton.icon(
+              onPressed: () => setState(() => customizing = !customizing),
+              icon: Icon(customizing ? Icons.check : Icons.tune),
+              label: Text(customizing ? 'Done' : 'Customize'),
+            ),
+          ],
         ),
-        const SizedBox(height: 14),
-        _ChartCard(
-          title: 'Cumulative balance',
-          subtitle: 'Running balance across the selected range',
-          child: _BalanceLineChart(days: snapshot.daily),
-        ),
-        if (snapshot.monthlyTotals.length > 1) ...[
-          const SizedBox(height: 14),
-          _ChartCard(
-            title: 'Monthly trend',
-            subtitle: 'Income and expense by month',
-            child: _MonthlyBarChart(months: snapshot.monthlyTotals),
-          ),
-        ],
-        const SizedBox(height: 14),
-        _CategoryDistribution(snapshot: snapshot),
-        const SizedBox(height: 14),
-        _AccountOverview(snapshot: snapshot),
-      ],
+        itemCount: order.length,
+        onReorder: (oldIndex, newIndex) {
+          if (!customizing) return;
+          setState(() {
+            if (newIndex > oldIndex) newIndex--;
+            final item = order.removeAt(oldIndex);
+            order.insert(newIndex, item);
+          });
+          _save();
+        },
+        itemBuilder: (context, index) {
+          final id = order[index];
+          return Padding(
+            key: ValueKey(id),
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Column(
+              children: [
+                if (customizing)
+                  ReorderableDragStartListener(
+                    index: index,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.drag_indicator),
+                          const SizedBox(width: 6),
+                          Text(
+                            _label(id),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                _card(id),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
+
+  String _label(String id) => switch (id) {
+    'summary' => 'Summary',
+    'comparison' => 'Income vs Expense',
+    'income_expense' => 'Income & Expense',
+    'cash_flow' => 'Cash Flow',
+    'categories' => 'Expense by Category',
+    'budget' => 'Budget',
+    'accounts' => 'Accounts and Wallets',
+    _ => 'Trends',
+  };
+
+  Widget _card(String id) => switch (id) {
+    'summary' => _SummaryGrid(snapshot: snapshot),
+    'comparison' => _ComparisonCard(snapshot: snapshot),
+    'income_expense' => _ChartCard(
+      title: 'Daily income vs expense',
+      subtitle: 'Tap a bar to inspect its value',
+      child: _DailyBarChart(days: snapshot.daily),
+    ),
+    'cash_flow' => _ChartCard(
+      title: 'Cumulative cash flow',
+      subtitle: 'Running balance across the selected range',
+      child: _BalanceLineChart(days: snapshot.daily),
+    ),
+    'categories' => _ExpensePieDistribution(snapshot: snapshot),
+    'budget' =>
+      snapshot.budgetTotal <= 0
+          ? PrototypeCard(
+              child: Column(
+                children: [
+                  const PrototypeEmptyState(
+                    icon: '🎯',
+                    title: 'No budget',
+                    subtitle: 'Add a budget to track spending progress.',
+                  ),
+                  PrototypeButton(
+                    label: 'Add Budget',
+                    onPressed: () =>
+                        Navigator.pushNamed(context, AppRoutes.addBudget).then(
+                          (_) => context.mounted
+                              ? context.read<AnalyticsController>().refresh()
+                              : null,
+                        ),
+                  ),
+                ],
+              ),
+            )
+          : _BudgetProgress(
+              title: 'Budget',
+              used: snapshot.budgetUsed,
+              total: snapshot.budgetTotal,
+            ),
+    'accounts' => _AccountOverview(snapshot: snapshot),
+    _ =>
+      snapshot.monthlyTotals.length > 1
+          ? _ChartCard(
+              title: 'Monthly trends',
+              subtitle: 'Income and expense by month',
+              child: _MonthlyBarChart(months: snapshot.monthlyTotals),
+            )
+          : _ChartCard(
+              title: 'Daily trend',
+              subtitle: 'Income and expense for the selected period',
+              child: _DailyBarChart(days: snapshot.daily),
+            ),
+  };
 }
 
 class _SummaryGrid extends StatelessWidget {
@@ -938,16 +1092,29 @@ class _MonthlyBarChart extends StatelessWidget {
   }
 }
 
-class _CategoryDistribution extends StatelessWidget {
-  const _CategoryDistribution({required this.snapshot});
+class _ExpensePieDistribution extends StatelessWidget {
+  const _ExpensePieDistribution({required this.snapshot});
   final AnalyticsSnapshot snapshot;
+
+  static const colors = [
+    AppColors.primary,
+    AppColors.expense,
+    AppColors.warning,
+    AppColors.categoryBlue,
+    AppColors.categoryPurple,
+    AppColors.income,
+  ];
 
   @override
   Widget build(BuildContext context) {
     final rows = snapshot.categories
-        .where((item) => item.type == 'expense' && item.total > 0)
+        .where(
+          (item) =>
+              item.type == 'expense' && item.total.isFinite && item.total > 0,
+        )
         .take(6)
         .toList();
+    final total = rows.fold(0.0, (sum, item) => sum + item.total);
     return PrototypeCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -957,59 +1124,106 @@ class _CategoryDistribution extends StatelessWidget {
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 14),
-          if (rows.isEmpty)
-            const Text('No expense categories in this range')
+          if (rows.isEmpty || !total.isFinite || total <= 0)
+            const PrototypeEmptyState(
+              icon: '📊',
+              title: 'No expense distribution',
+              subtitle: 'No positive category expenses exist in this range.',
+            )
           else
-            ...rows.map(
-              (row) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            row.name,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final chart = SizedBox(
+                  width: 168,
+                  height: 168,
+                  child: PieChart(
+                    PieChartData(
+                      centerSpaceRadius: 38,
+                      sectionsSpace: 2,
+                      sections: List.generate(
+                        rows.length,
+                        (index) => PieChartSectionData(
+                          value: rows[index].total,
+                          color: _colorFor(rows[index].id, rows[index].name),
+                          radius: 44,
+                          showTitle: false,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+                final legend = Column(
+                  children: List.generate(rows.length, (index) {
+                    final row = rows[index];
+                    final percentage = row.total / total * 100;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 9),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: _colorFor(row.id, row.name),
+                              shape: BoxShape.circle,
                             ),
                           ),
-                        ),
-                        Text(
-                          '${row.percentageOf(snapshot.totals.expense).toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: context.appMuted,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              row.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          CurrencyFormatter.format(row.total),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                          Text(
+                            '${percentage.toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: context.appMuted,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    LinearProgressIndicator(
-                      value: (row.percentageOf(snapshot.totals.expense) / 100)
-                          .clamp(0, 1),
-                      minHeight: 7,
-                      borderRadius: BorderRadius.circular(4),
-                      backgroundColor: context.appBorder,
-                      color: AppColors.expense,
-                      semanticsLabel: '${row.name} share of expenses',
-                    ),
-                  ],
-                ),
-              ),
+                          const SizedBox(width: 8),
+                          Text(
+                            CurrencyFormatter.format(row.total),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                );
+                return constraints.maxWidth < 440
+                    ? Column(
+                        children: [
+                          Center(child: chart),
+                          const SizedBox(height: 16),
+                          legend,
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          chart,
+                          const SizedBox(width: 20),
+                          Expanded(child: legend),
+                        ],
+                      );
+              },
             ),
         ],
       ),
     );
+  }
+
+  static Color _colorFor(int? id, String name) {
+    final seed = id ?? name.codeUnits.fold<int>(0, (sum, value) => sum + value);
+    return colors[seed.abs() % colors.length];
   }
 }
 
@@ -1027,21 +1241,23 @@ class _AccountOverview extends StatelessWidget {
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 12),
+        if (snapshot.accounts.isEmpty)
+          const PrototypeEmptyState(
+            icon: '👛',
+            title: 'No accounts',
+            subtitle: 'Create an account or wallet to see balances here.',
+          ),
         ...snapshot.accounts.map(
           (row) => ListTile(
             contentPadding: EdgeInsets.zero,
+            onTap: () => _openTransactions(context, row.account.id),
             leading: CircleAvatar(
               backgroundColor: context.appPrimarySoft,
               foregroundColor: AppColors.primary,
-              child: const Icon(
-                Icons.account_balance_wallet_outlined,
-                size: 19,
-              ),
+              child: Icon(_accountIcon(row.account.type), size: 19),
             ),
             title: Text(row.account.name),
-            subtitle: Text(
-              '${row.count} transactions • ${row.mostUsedCategory ?? 'No category yet'}',
-            ),
+            subtitle: Text(_accountTypeLabel(row.account.type)),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -1050,11 +1266,15 @@ class _AccountOverview extends StatelessWidget {
                   CurrencyFormatter.format(row.account.currentBalance),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                Text(
-                  'Net ${CurrencyFormatter.format(row.net)}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: row.net >= 0 ? AppColors.income : AppColors.expense,
+                InkWell(
+                  onTap: () => _openTransactions(context, row.account.id),
+                  child: const Text(
+                    'Transactions',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
                   ),
                 ),
               ],
@@ -1064,6 +1284,30 @@ class _AccountOverview extends StatelessWidget {
       ],
     ),
   );
+
+  static IconData _accountIcon(String type) => switch (type) {
+    'bank' => Icons.account_balance_outlined,
+    'card' => Icons.credit_card_outlined,
+    'mobile_banking' => Icons.phone_android_outlined,
+    'cash' => Icons.wallet_outlined,
+    _ => Icons.account_balance_wallet_outlined,
+  };
+
+  static String _accountTypeLabel(String type) => switch (type) {
+    'bank' => 'Bank account',
+    'card' => 'Card',
+    'mobile_banking' => 'Mobile banking',
+    'cash' => 'Cash wallet',
+    _ => 'Account',
+  };
+
+  static void _openTransactions(BuildContext context, int accountId) {
+    context.read<TransactionProvider>().load({
+      'account_id': accountId,
+      'sort': 'date_desc',
+    });
+    Navigator.pushNamed(context, AppRoutes.transactions);
+  }
 }
 
 class _CalendarTab extends StatelessWidget {
@@ -2045,12 +2289,17 @@ class _BudgetTab extends StatelessWidget {
   Widget build(BuildContext context) {
     if (snapshot.budgets.isEmpty) {
       return _AnalyticsScroll(
-        children: const [
-          PrototypeEmptyState(
+        children: [
+          const PrototypeEmptyState(
             icon: '🎯',
             title: 'No budgets for this range',
             subtitle:
                 'Create category budgets to monitor usage and projections.',
+          ),
+          const SizedBox(height: 12),
+          PrototypeButton(
+            label: 'Add Budget',
+            onPressed: () => _openBudgets(context),
           ),
         ],
       );
@@ -2060,6 +2309,16 @@ class _BudgetTab extends StatelessWidget {
     final projected = snapshot.averageDailyExpense * days;
     return _AnalyticsScroll(
       children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: PrototypeButton(
+            label: 'Manage Budgets',
+            fullWidth: false,
+            height: 38,
+            onPressed: () => _openBudgets(context),
+          ),
+        ),
+        const SizedBox(height: 10),
         _BudgetProgress(
           title: 'Overall budget',
           used: snapshot.budgetUsed,
@@ -2110,6 +2369,15 @@ class _BudgetTab extends StatelessWidget {
             ),
       ],
     );
+  }
+
+  Future<void> _openBudgets(BuildContext context) async {
+    await Navigator.pushNamed(context, AppRoutes.budgets);
+    if (!context.mounted) return;
+    await Future.wait([
+      context.read<BudgetProvider>().load(),
+      context.read<AnalyticsController>().refresh(),
+    ]);
   }
 }
 
@@ -2193,33 +2461,9 @@ class _InsightsTab extends StatelessWidget {
       PrototypeCard(
         child: Row(
           children: [
-            SizedBox(
-              width: 94,
-              height: 94,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    value: snapshot.health.score / 100,
-                    strokeWidth: 9,
-                    backgroundColor: context.appBorder,
-                    color: _healthColor(snapshot.health.score),
-                  ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${snapshot.health.score}',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const Text('/ 100', style: TextStyle(fontSize: 9)),
-                    ],
-                  ),
-                ],
-              ),
+            FinancialHealthGauge(
+              score: snapshot.health.score,
+              color: _healthColor(snapshot.health.score),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -2345,6 +2589,76 @@ class _InsightsTab extends StatelessWidget {
       : score >= 45
       ? AppColors.warning
       : AppColors.expense;
+}
+
+class FinancialHealthGauge extends StatelessWidget {
+  const FinancialHealthGauge({
+    super.key,
+    required this.score,
+    required this.color,
+  });
+
+  final int score;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final safeScore = score.clamp(0, 100);
+    return Semantics(
+      label: 'Financial health score $safeScore out of 100',
+      child: SizedBox(
+        width: 104,
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox.expand(
+                child: CircularProgressIndicator(
+                  value: safeScore / 100,
+                  strokeWidth: 8,
+                  backgroundColor: context.appBorder,
+                  color: color,
+                ),
+              ),
+              SizedBox(
+                width: 54,
+                height: 58,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '$safeScore',
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontSize: 26,
+                          height: 1,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '/100',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 10,
+                          height: 1,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _FactorBar extends StatelessWidget {

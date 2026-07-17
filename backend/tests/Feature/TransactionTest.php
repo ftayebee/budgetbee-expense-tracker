@@ -193,4 +193,38 @@ class TransactionTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data.data');
     }
+
+    public function test_filters_sort_pagination_and_account_transfer_membership_work_together(): void
+    {
+        $destination = Account::factory()->for($this->user)->create([
+            'opening_balance' => 0,
+            'current_balance' => 0,
+        ]);
+        $this->postJson('/api/v1/transactions', [
+            'title' => 'Wallet transfer',
+            'type' => 'transfer',
+            'amount' => 300,
+            'from_account_id' => $this->account->id,
+            'to_account_id' => $destination->id,
+            'transaction_date' => now()->toDateString(),
+        ])->assertCreated();
+        foreach ([25, 75, 150] as $amount) {
+            $this->postJson('/api/v1/transactions', [
+                'title' => "Expense {$amount}",
+                'type' => 'expense',
+                'amount' => $amount,
+                'account_id' => $destination->id,
+                'category_id' => $this->expenseCat->id,
+                'transaction_date' => now()->toDateString(),
+            ])->assertCreated();
+        }
+
+        $this->getJson("/api/v1/transactions?account_id={$destination->id}&min_amount=50&sort=amount_desc&per_page=2")
+            ->assertOk()
+            ->assertJsonPath('data.meta.total', 3)
+            ->assertJsonPath('data.meta.last_page', 2)
+            ->assertJsonPath('data.data.0.type', 'transfer')
+            ->assertJsonPath('data.data.0.amount', 300)
+            ->assertJsonPath('data.data.1.amount', 150);
+    }
 }

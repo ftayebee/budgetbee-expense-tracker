@@ -8,6 +8,8 @@ use App\Http\Resources\BudgetResource;
 use App\Models\Budget;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class BudgetController extends Controller
 {
@@ -20,9 +22,10 @@ class BudgetController extends Controller
 
     public function store(BudgetRequest $request)
     {
+        $validated = $request->validated();
         $budget = Budget::updateOrCreate(
             $request->safe()->only(['category_id', 'month', 'year']) + ['user_id' => $request->user()->id],
-            ['amount' => $request->amount, 'period' => $request->period]
+            $validated
         );
         return $this->success(new BudgetResource($budget->load('category')), 'Budget saved', 201);
     }
@@ -36,14 +39,43 @@ class BudgetController extends Controller
     public function update(BudgetRequest $request, Budget $budget)
     {
         abort_unless($budget->user_id === $request->user()->id, 404);
-        $budget->update($request->validated());
-        return $this->success(new BudgetResource($budget->load('category')), 'Budget updated');
+        try {
+            $validated = $request->validated();
+            Log::info('Budget update requested', [
+                'user_id' => $request->user()->id,
+                'resource_id' => $budget->id,
+                'request_method' => $request->method(),
+                'validated_fields' => array_keys($validated),
+            ]);
+            $budget->update($validated);
+            return $this->success(new BudgetResource($budget->load('category')), 'Budget updated');
+        } catch (Throwable $exception) {
+            Log::error('Budget update failed', [
+                'user_id' => $request->user()->id,
+                'resource_id' => $budget->id,
+                'request_method' => $request->method(),
+                'exception' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+            throw $exception;
+        }
     }
 
     public function destroy(Request $request, Budget $budget)
     {
         abort_unless($budget->user_id === $request->user()->id, 404);
-        $budget->delete();
+        try {
+            $budget->delete();
+        } catch (Throwable $exception) {
+            Log::error('Budget delete failed', [
+                'user_id' => $request->user()->id,
+                'resource_id' => $budget->id,
+                'request_method' => $request->method(),
+                'exception' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+            throw $exception;
+        }
         return $this->success(null, 'Budget deleted');
     }
 }

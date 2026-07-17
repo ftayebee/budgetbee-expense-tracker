@@ -36,6 +36,7 @@ class _CompactAddTransactionScreenState
   DateTime date = DateTime.now();
   String? selectionError;
   bool _submitting = false;
+  bool _routeArgumentsApplied = false;
 
   @override
   void dispose() {
@@ -75,9 +76,32 @@ class _CompactAddTransactionScreenState
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_routeArgumentsApplied || widget.transaction != null) return;
+    _routeArgumentsApplied = true;
+    final argument = ModalRoute.of(context)?.settings.arguments;
+    if (argument is String &&
+        const {'income', 'expense', 'transfer'}.contains(argument)) {
+      type = argument;
+    }
+  }
+
+  void _changeType(String nextType) {
+    if (nextType == type) return;
+    setState(() {
+      type = nextType;
+      accountId = null;
+      categoryId = null;
+      fromAccountId = null;
+      toAccountId = null;
+      selectionError = null;
+      form.currentState?.reset();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final arg = ModalRoute.of(context)?.settings.arguments;
-    if (arg is String && widget.transaction == null && type != arg) type = arg;
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: PrototypeTopBar(
@@ -116,13 +140,7 @@ class _CompactAddTransactionScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _CompactTypeToggle(
-                      type: type,
-                      onChanged: (v) => setState(() {
-                        type = v;
-                        categoryId = null;
-                      }),
-                    ),
+                    _CompactTypeToggle(type: type, onChanged: _changeType),
                     const SizedBox(height: 12),
                     PrototypeInput(
                       controller: amount,

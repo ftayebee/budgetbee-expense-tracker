@@ -9,9 +9,17 @@ class Budget extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'category_id', 'amount', 'period', 'month', 'year'];
+    protected $fillable = [
+        'user_id', 'category_id', 'name', 'amount', 'period', 'start_date',
+        'end_date', 'alert_threshold', 'month', 'year',
+    ];
 
-    protected $casts = ['amount' => 'decimal:2'];
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'alert_threshold' => 'integer',
+    ];
 
     public function user() { return $this->belongsTo(User::class); }
     public function category() { return $this->belongsTo(Category::class); }

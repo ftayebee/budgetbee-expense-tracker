@@ -10,11 +10,14 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/utils/validators.dart';
 import '../../data/models/category_model.dart';
+import '../../data/models/budget_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../presentation/providers/app_providers.dart';
 import '../../presentation/widgets/app_widgets.dart';
 import '../../routes/app_routes.dart';
 import '../../features/analytics/presentation/premium_analytics_screen.dart';
+import '../../features/analytics/presentation/analytics_controller.dart';
+import 'transactions/transaction_filter_sheet.dart';
 
 void _selectMainTab(BuildContext context, int index, String fallbackRoute) {
   final scope = MainTabScope.maybeOf(context);
@@ -1157,19 +1160,86 @@ class TransactionsScreen extends StatefulWidget {
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
   final search = TextEditingController();
-  String filter = 'all';
+  final scroll = ScrollController();
+  TransactionFilter filter = const TransactionFilter();
   int? _editingTransactionId;
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(_load);
+    scroll.addListener(_onScroll);
+    Future.microtask(() async {
+      final provider = context.read<TransactionProvider>();
+      filter = TransactionFilter.fromQuery(provider.filters);
+      search.text = provider.filters['search']?.toString() ?? '';
+      await Future.wait([
+        context.read<AccountProvider>().load(),
+        context.read<CategoryProvider>().load(),
+      ]);
+      await _load();
+    });
   }
 
-  Future<void> _load() => context.read<TransactionProvider>().load({
-    'search': search.text,
-    'type': filter == 'all' ? null : filter,
-  });
+  @override
+  void dispose() {
+    scroll
+      ..removeListener(_onScroll)
+      ..dispose();
+    search.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (scroll.position.extentAfter < 320) {
+      context.read<TransactionProvider>().loadMore();
+    }
+  }
+
+  Future<void> _load() => context.read<TransactionProvider>().load(
+    filter.toQuery(search: search.text.trim()),
+  );
+
+  Future<void> _showFilters() async {
+    final selected = await showModalBottomSheet<TransactionFilter>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => TransactionFilterSheet(
+        initial: filter,
+        accounts: context.read<AccountProvider>().accounts,
+        categories: context.read<CategoryProvider>().categories,
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() => filter = selected);
+    await _load();
+  }
+
+  Future<void> _setType(String? type) async {
+    final selectedCategory = filter.categoryId;
+    final categoryMatches =
+        selectedCategory == null ||
+        (type != null &&
+            type != 'transfer' &&
+            context.read<CategoryProvider>().categories.any(
+              (category) =>
+                  category.id == selectedCategory && category.type == type,
+            ));
+    setState(
+      () => filter = TransactionFilter(
+        type: type,
+        datePreset: filter.datePreset,
+        from: filter.from,
+        to: filter.to,
+        accountId: filter.accountId,
+        categoryId: categoryMatches ? selectedCategory : null,
+        minimumAmount: filter.minimumAmount,
+        maximumAmount: filter.maximumAmount,
+        sort: filter.sort,
+      ),
+    );
+    await _load();
+  }
 
   Future<void> _editTransaction(TransactionModel transaction) async {
     if (_editingTransactionId != null || transaction.id <= 0) return;
@@ -1228,22 +1298,32 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Row(
-                  children: [
-                    for (final f in ['all', 'income', 'expense']) ...[
-                      _FilterChip(
-                        label: f,
-                        selected: filter == f,
-                        onTap: () {
-                          setState(() => filter = f);
-                          _load();
-                        },
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final f in [
+                        'all',
+                        'income',
+                        'expense',
+                        'transfer',
+                      ]) ...[
+                        _FilterChip(
+                          label: f,
+                          selected: (filter.type ?? 'all') == f,
+                          onTap: () => _setType(f == 'all' ? null : f),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      const SizedBox(width: 4),
+                      _OutlinePill(
+                        label: filter.activeCount == 0
+                            ? 'Filter'
+                            : 'Filter ${filter.activeCount}',
+                        onTap: _showFilters,
                       ),
-                      const SizedBox(width: 8),
                     ],
-                    const Spacer(),
-                    _OutlinePill(label: '⚙ Filter', onTap: () {}),
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -1254,28 +1334,40 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 if (state.loading && state.transactions.isEmpty)
                   return const LoadingWidget();
                 if (state.transactions.isEmpty)
-                  return const PrototypeEmptyState(
+                  return PrototypeEmptyState(
                     icon: '🔍',
                     title: 'No transactions found',
-                    subtitle: 'Try adjusting your filters or search terms.',
+                    subtitle: filter.isActive || search.text.isNotEmpty
+                        ? 'No transactions match the active filters.'
+                        : 'Add your first transaction to see it here.',
                   );
                 return RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.separated(
+                    controller: scroll,
                     padding: const EdgeInsets.all(16),
-                    itemBuilder: (_, i) => PrototypeTransactionCard(
-                      transaction: state.transactions[i],
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        AppRoutes.transactionDetails,
-                        arguments: state.transactions[i],
-                      ),
-                      onEdit: _editingTransactionId == null
-                          ? () => _editTransaction(state.transactions[i])
-                          : null,
-                    ),
+                    itemBuilder: (_, i) {
+                      if (i == state.transactions.length) {
+                        return const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      return PrototypeTransactionCard(
+                        transaction: state.transactions[i],
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          AppRoutes.transactionDetails,
+                          arguments: state.transactions[i],
+                        ),
+                        onEdit: _editingTransactionId == null
+                            ? () => _editTransaction(state.transactions[i])
+                            : null,
+                      );
+                    },
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemCount: state.transactions.length,
+                    itemCount:
+                        state.transactions.length + (state.loadingMore ? 1 : 0),
                   ),
                 );
               },
@@ -2228,7 +2320,7 @@ class _CategoryCard extends StatelessWidget {
     final color = colorForCategory(category);
     return PrototypeCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      onTap: () => Navigator.pushNamed(context, AppRoutes.addCategory),
+      onTap: () => _edit(context),
       child: Row(
         children: [
           Container(
@@ -2263,17 +2355,67 @@ class _CategoryCard extends StatelessWidget {
             ),
           ),
           _MiniIcon(
-            color: context.appPrimarySoft,
+            color: AppColors.warning.withValues(alpha: .14),
             icon: Icons.edit,
-            iconColor: AppColors.primary,
+            iconColor: AppColors.warning,
+            onTap: () => _edit(context),
           ),
           const SizedBox(width: 8),
           _MiniIcon(
             color: context.appExpenseSoft,
             icon: Icons.delete_outline,
             iconColor: AppColors.expense,
+            onTap: () => _delete(context),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _edit(BuildContext context) async {
+    final changed = await Navigator.pushNamed<bool>(
+      context,
+      AppRoutes.addCategory,
+      arguments: category,
+    );
+    if (changed != true || !context.mounted) return;
+    await Future.wait([
+      context.read<TransactionProvider>().load(),
+      context.read<DashboardProvider>().load(),
+      context.read<ReportProvider>().load(),
+      context.read<AnalyticsController>().refresh(),
+    ]);
+  }
+
+  Future<void> _delete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete category?'),
+        content: Text(
+          'Delete “${category.name}”? Existing transactions will never be deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final provider = context.read<CategoryProvider>();
+    final deleted = await provider.remove(category.id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          deleted ? 'Category deleted.' : provider.error ?? 'Delete failed.',
+        ),
       ),
     );
   }
@@ -2284,19 +2426,28 @@ class _MiniIcon extends StatelessWidget {
     required this.color,
     required this.icon,
     required this.iconColor,
+    this.onTap,
   });
   final Color color;
   final IconData icon;
   final Color iconColor;
+  final VoidCallback? onTap;
   @override
-  Widget build(BuildContext context) => Container(
-    width: 30,
-    height: 30,
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(8),
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(8),
+    child: Opacity(
+      opacity: onTap == null ? .4 : 1,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 20, color: iconColor),
+      ),
     ),
-    child: Icon(icon, size: 15, color: iconColor),
   );
 }
 
@@ -2492,6 +2643,17 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     Future.microtask(() => context.read<BudgetProvider>().load());
   }
 
+  Future<void> _openBudget([BudgetModel? budget]) async {
+    final changed = await Navigator.pushNamed<bool>(
+      context,
+      AppRoutes.addBudget,
+      arguments: budget,
+    );
+    if (changed == true && mounted) {
+      await context.read<BudgetProvider>().load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(
@@ -2505,6 +2667,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             ),
             child: Row(
               children: [
+                IconButton(
+                  tooltip: 'Back',
+                  onPressed: () => Navigator.maybePop(context),
+                  icon: const Icon(Icons.arrow_back),
+                ),
                 Text(
                   'Budget',
                   style: TextStyle(
@@ -2516,8 +2683,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 const Spacer(),
                 PrototypeButton(
                   label: '+ Set Budget',
-                  onPressed: () =>
-                      Navigator.pushNamed(context, AppRoutes.addBudget),
+                  onPressed: _openBudget,
                   fullWidth: false,
                   height: 36,
                 ),
@@ -2638,10 +2804,21 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     ),
                     const SizedBox(height: 10),
                     if (state.budgets.isEmpty)
-                      const PrototypeEmptyState(
-                        icon: '🎯',
-                        title: 'No budgets yet',
-                        subtitle: 'Set category budgets to track spending.',
+                      PrototypeCard(
+                        child: Column(
+                          children: [
+                            const PrototypeEmptyState(
+                              icon: '🎯',
+                              title: 'No budgets yet',
+                              subtitle:
+                                  'Set category budgets to track spending.',
+                            ),
+                            PrototypeButton(
+                              label: 'Add Budget',
+                              onPressed: _openBudget,
+                            ),
+                          ],
+                        ),
                       )
                     else
                       ...state.budgets.map((b) {
@@ -2688,7 +2865,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                           Row(
                                             children: [
                                               Text(
-                                                b.category?.name ?? 'Budget',
+                                                b.name,
                                                 style: TextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w600,
@@ -2739,6 +2916,58 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                       ),
                                     ),
                                     const Spacer(),
+                                    IconButton(
+                                      tooltip: 'Edit budget',
+                                      onPressed: () => _openBudget(b),
+                                      icon: const Icon(Icons.edit_outlined),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Delete budget',
+                                      onPressed: () async {
+                                        final confirmed =
+                                            await showDialog<bool>(
+                                              context: context,
+                                              builder: (dialogContext) =>
+                                                  AlertDialog(
+                                                    title: const Text(
+                                                      'Delete budget?',
+                                                    ),
+                                                    content: Text(
+                                                      'Delete “${b.name}”?',
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              dialogContext,
+                                                              false,
+                                                            ),
+                                                        child: const Text(
+                                                          'Cancel',
+                                                        ),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              dialogContext,
+                                                              true,
+                                                            ),
+                                                        child: const Text(
+                                                          'Delete',
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                            );
+                                        if (confirmed == true &&
+                                            context.mounted) {
+                                          await context
+                                              .read<BudgetProvider>()
+                                              .remove(b.id);
+                                        }
+                                      },
+                                      icon: const Icon(Icons.delete_outline),
+                                    ),
                                     Text(
                                       over
                                           ? '${CurrencyFormatter.format(b.spent - b.amount)} over budget'

@@ -420,7 +420,7 @@ class SafeSettingsScreen extends StatelessWidget {
                 rows: [
                   _SettingsRow(
                     icon: '🎯',
-                    label: 'Budgets',
+                    label: 'Set Budget',
                     onTap: () =>
                         Navigator.pushNamed(context, AppRoutes.budgets),
                   ),
