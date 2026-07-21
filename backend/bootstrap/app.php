@@ -8,6 +8,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
@@ -46,6 +47,14 @@ return Application::configure(basePath: dirname(__DIR__))
                 $e instanceof HttpExceptionInterface => [$e->getStatusCode(), $e->getMessage() ?: 'Request failed.'],
                 default => [500, null],
             };
+
+            if ($e instanceof AuthenticationException) {
+                Log::warning('Unauthenticated API request blocked', [
+                    'path' => $request->path(),
+                    'method' => $request->method(),
+                    'user_agent' => mb_substr((string) $request->userAgent(), 0, 500),
+                ]);
+            }
 
             // Never leak internal error details or stack traces to API clients.
             if ($status === 500) {

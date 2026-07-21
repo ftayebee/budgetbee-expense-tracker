@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -36,7 +37,40 @@ class AuthTest extends TestCase
             'email' => 'taken@example.com',
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
-        ])->assertStatus(422)->assertJsonValidationErrors('email');
+        ])->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Validation failed')
+            ->assertJsonPath('errors.email.0', 'The email has already been taken.');
+    }
+
+    public function test_registration_validation_failure_is_logged_without_credentials(): void
+    {
+        Log::spy();
+
+        $this->withHeaders([
+            'User-Agent' => 'BudgetBee Android test',
+            'X-Client-Platform' => 'Android 8.1',
+        ])->postJson('/api/v1/auth/register', [
+            'name' => '',
+            'email' => 'invalid',
+            'password' => 'secret123',
+            'password_confirmation' => 'different',
+        ])->assertUnprocessable()
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'errors' => ['name', 'email', 'password'],
+            ]);
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(function (string $message, array $context): bool {
+                return $message === 'Registration validation failed'
+                    && $context['platform'] === 'Android 8.1'
+                    && $context['user_agent'] === 'BudgetBee Android test'
+                    && ! array_key_exists('password', $context)
+                    && ! array_key_exists('password_confirmation', $context);
+            });
     }
 
     public function test_registration_requires_password_confirmation(): void
@@ -47,6 +81,54 @@ class AuthTest extends TestCase
             'password' => 'secret123',
             'password_confirmation' => 'different',
         ])->assertStatus(422)->assertJsonValidationErrors('password');
+    }
+
+    public function test_registration_normalizes_and_rejects_duplicate_phone(): void
+    {
+        $payload = [
+            'name' => 'Jane',
+            'email' => 'jane@example.com',
+            'phone' => '+880 1712-345678',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ];
+
+        $this->postJson('/api/v1/auth/register', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.user.phone', '+8801712345678');
+
+        $this->postJson('/api/v1/auth/register', array_merge($payload, [
+            'email' => 'another@example.com',
+            'phone' => '+880 (1712) 345678',
+        ]))->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('errors.phone.0', 'The phone number has already been taken.');
+
+        $this->assertDatabaseCount('users', 1);
+    }
+
+    public function test_successful_registration_is_logged_without_token_or_password(): void
+    {
+        Log::spy();
+
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Jane',
+            'email' => 'jane@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123',
+        ])->assertCreated();
+
+        Log::shouldHaveReceived('info')
+            ->withArgs(fn (string $message, array $context): bool =>
+                $message === 'Registration request received'
+                && ! array_key_exists('password', $context)
+                && ! array_key_exists('token', $context));
+        Log::shouldHaveReceived('info')
+            ->withArgs(fn (string $message, array $context): bool =>
+                $message === 'Registration successful'
+                && isset($context['user_id'])
+                && ! array_key_exists('password', $context)
+                && ! array_key_exists('token', $context));
     }
 
     public function test_a_user_can_login_with_valid_credentials(): void

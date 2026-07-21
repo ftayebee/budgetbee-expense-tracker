@@ -110,22 +110,45 @@ class AnalyticsDataset {
       T Function(Map<String, dynamic>) parser,
     ) {
       if (value is Map && value['data'] is List) value = value['data'];
-      if (value is! List) return [];
+      if (value is! List) {
+        throw const FormatException('Expected a report list.');
+      }
       return value
-          .map((item) => parser(Map<String, dynamic>.from(item as Map)))
-          .toList();
+          .map((item) {
+            if (item is! Map) {
+              throw const FormatException('Invalid report list item.');
+            }
+            return parser(Map<String, dynamic>.from(item));
+          })
+          .toList(growable: false);
     }
 
-    DateTime parseDate(String key) =>
-        DateTime.tryParse('${json[key]}') ?? DateTime.now();
+    DateTime parseDate(String key) {
+      final parsed = DateTime.tryParse(json[key]?.toString() ?? '');
+      if (parsed == null) {
+        throw FormatException('Invalid report date: $key');
+      }
+      return parsed;
+    }
+
+    double parseNumber(String key) {
+      final value = json[key];
+      final parsed = value is num
+          ? value.toDouble()
+          : double.tryParse(value?.toString() ?? '');
+      if (parsed == null || !parsed.isFinite) {
+        throw FormatException('Invalid report number: $key');
+      }
+      return parsed;
+    }
 
     return AnalyticsDataset(
       from: parseDate('from'),
       to: parseDate('to'),
       comparisonFrom: parseDate('comparison_from'),
       comparisonTo: parseDate('comparison_to'),
-      openingBalance: _double(json['opening_balance']),
-      closingBalance: _double(json['closing_balance']),
+      openingBalance: parseNumber('opening_balance'),
+      closingBalance: parseNumber('closing_balance'),
       transactions: parseList(json['transactions'], TransactionModel.fromJson),
       comparisonTransactions: parseList(
         json['comparison_transactions'],
@@ -135,9 +158,6 @@ class AnalyticsDataset {
       budgets: parseList(json['budgets'], BudgetModel.fromJson),
     );
   }
-
-  static double _double(dynamic value) =>
-      value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
 }
 
 class PeriodTotals {

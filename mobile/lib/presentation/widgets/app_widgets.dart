@@ -171,6 +171,7 @@ class PrototypeInput extends StatelessWidget {
     this.readOnly = false,
     this.onTap,
     this.focusNode,
+    this.onChanged,
   });
   final TextEditingController controller;
   final String label;
@@ -184,6 +185,7 @@ class PrototypeInput extends StatelessWidget {
   final bool readOnly;
   final VoidCallback? onTap;
   final FocusNode? focusNode;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -207,6 +209,7 @@ class PrototypeInput extends StatelessWidget {
         readOnly: readOnly,
         onTap: onTap,
         focusNode: focusNode,
+        onChanged: onChanged,
         style: TextStyle(fontSize: 15, color: context.appText),
         decoration: InputDecoration(
           hintText: placeholder,
@@ -621,6 +624,7 @@ class CustomDropdown<T> extends StatelessWidget {
       ),
       const SizedBox(height: 6),
       DropdownButtonFormField<T>(
+        key: ValueKey(value),
         initialValue: value,
         items: items,
         onChanged: onChanged,
@@ -652,13 +656,17 @@ class EmptyState extends PrototypeEmptyState {
 }
 
 class ErrorState extends StatelessWidget {
-  const ErrorState(this.message, {super.key});
+  const ErrorState(this.message, {super.key, this.actionLabel, this.onAction});
   final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
   @override
   Widget build(BuildContext context) => PrototypeEmptyState(
     icon: '⚠️',
     title: 'Something went wrong',
     subtitle: message,
+    actionLabel: actionLabel,
+    onAction: onAction,
   );
 }
 

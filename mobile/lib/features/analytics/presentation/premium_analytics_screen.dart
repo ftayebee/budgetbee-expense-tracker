@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/logging/app_logger.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../../presentation/screens/transactions/compact_add_transaction_screen.dart';
@@ -26,10 +27,12 @@ class PremiumAnalyticsScreen extends StatefulWidget {
 class _PremiumAnalyticsScreenState extends State<PremiumAnalyticsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController tabs;
+  bool _handlingExpiredSession = false;
 
   @override
   void initState() {
     super.initState();
+    AppLogger.debug('Reports screen opened');
     tabs = TabController(length: 6, vsync: this);
     Future.microtask(() => context.read<AnalyticsController>().load());
   }
@@ -56,9 +59,31 @@ class _PremiumAnalyticsScreenState extends State<PremiumAnalyticsScreen>
                   return const _AnalyticsSkeleton();
                 }
                 if (controller.error != null && snapshot == null) {
-                  return ErrorState(controller.error!);
+                  if (controller.errorKind ==
+                      AnalyticsErrorKind.authentication) {
+                    _redirectExpiredSession();
+                  }
+                  return ErrorState(
+                    controller.error!,
+                    actionLabel:
+                        controller.errorKind ==
+                            AnalyticsErrorKind.authentication
+                        ? null
+                        : 'Retry',
+                    onAction:
+                        controller.errorKind ==
+                            AnalyticsErrorKind.authentication
+                        ? null
+                        : controller.refresh,
+                  );
                 }
-                if (snapshot == null) return const _AnalyticsSkeleton();
+                if (snapshot == null) {
+                  return ErrorState(
+                    'Reports could not be displayed. Please try again.',
+                    actionLabel: 'Retry',
+                    onAction: controller.refresh,
+                  );
+                }
                 return TabBarView(
                   controller: tabs,
                   children: [
@@ -87,6 +112,17 @@ class _PremiumAnalyticsScreenState extends State<PremiumAnalyticsScreen>
     if (label.contains('budget')) tabs.animateTo(4);
     if (label.contains('comparison')) tabs.animateTo(0);
     if (label.contains('day')) tabs.animateTo(1);
+  }
+
+  void _redirectExpiredSession() {
+    if (_handlingExpiredSession) return;
+    _handlingExpiredSession = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await context.read<AuthProvider>().expireSession();
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (_) => false);
+    });
   }
 }
 
@@ -561,9 +597,8 @@ class _OverviewTabState extends State<_OverviewTab> {
         children: const [
           PrototypeEmptyState(
             icon: '📊',
-            title: 'No financial activity',
-            subtitle:
-                'Choose another range or add a transaction to build analytics.',
+            title: 'No report data',
+            subtitle: 'No report data is available for the selected period.',
           ),
         ],
       );

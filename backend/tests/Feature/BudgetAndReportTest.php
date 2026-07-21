@@ -9,6 +9,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class BudgetAndReportTest extends TestCase
@@ -149,5 +150,38 @@ class BudgetAndReportTest extends TestCase
             ->assertOk();
         $this->assertCount(1, $expenseOnly->json('data.transactions'));
         $this->assertSame('Food', $expenseOnly->json('data.transactions.0.category.name'));
+    }
+
+    public function test_empty_analytics_report_is_successful_and_logged(): void
+    {
+        Log::spy();
+
+        $response = $this->getJson('/api/v1/reports/analytics?from=2026-07-01&to=2026-07-31')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(0, 'data.transactions');
+
+        $this->assertSame(
+            (float) $this->account->opening_balance,
+            (float) $response->json('data.opening_balance'),
+        );
+        Log::shouldHaveReceived('info')
+            ->withArgs(fn (string $message, array $context): bool =>
+                $message === 'Reports API request received'
+                && $context['report'] === 'analytics'
+                && $context['user_id'] === $this->user->id);
+        Log::shouldHaveReceived('info')
+            ->withArgs(fn (string $message, array $context): bool =>
+                $message === 'Reports API response successful'
+                && $context['record_count'] === 0
+                && isset($context['execution_ms']));
+    }
+
+    public function test_analytics_report_rejects_invalid_date_range(): void
+    {
+        $this->getJson('/api/v1/reports/analytics?from=2026-08-01&to=2026-07-01')
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonStructure(['errors' => ['to']]);
     }
 }

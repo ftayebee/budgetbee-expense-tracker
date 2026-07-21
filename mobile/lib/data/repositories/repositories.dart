@@ -1,4 +1,5 @@
 import '../../core/network/api_client.dart';
+import '../../core/network/api_exception.dart';
 import '../models/account_model.dart';
 import '../models/budget_model.dart';
 import '../models/category_model.dart';
@@ -50,19 +51,51 @@ class AuthRepository {
   Future<AuthResult> register(
     String name,
     String email,
+    String? phone,
     String password,
     String confirmation,
   ) async {
-    final data = await client.post(
-      '/auth/register',
-      data: {
-        'name': name,
-        'email': email,
-        'password': password,
-        'password_confirmation': confirmation,
-      },
-    );
-    return AuthResult(UserModel.fromJson(data['user']), data['token']);
+    dynamic data;
+    try {
+      data = await client.post(
+        '/auth/register',
+        data: {
+          'name': name,
+          'email': email,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
+          'password': password,
+          'password_confirmation': confirmation,
+        },
+      );
+    } on ApiException catch (exception) {
+      if ((exception.statusCode ?? 0) >= 500 ||
+          exception.message ==
+              'The request could not be completed. Please try again.') {
+        throw ApiException(
+          'Registration could not be completed. Please try again.',
+          errors: exception.errors,
+          statusCode: exception.statusCode,
+        );
+      }
+      rethrow;
+    }
+    if (data is! Map ||
+        data['user'] is! Map ||
+        data['token'] is! String ||
+        (data['token'] as String).isEmpty) {
+      throw ApiException(
+        'Registration could not be completed. Please try again.',
+      );
+    }
+    final userJson = Map<String, dynamic>.from(data['user'] as Map);
+    if (userJson['id'] == null ||
+        userJson['name'] == null ||
+        userJson['email'] == null) {
+      throw ApiException(
+        'Registration could not be completed. Please try again.',
+      );
+    }
+    return AuthResult(UserModel.fromJson(userJson), data['token'] as String);
   }
 
   Future<UserModel> me() async =>

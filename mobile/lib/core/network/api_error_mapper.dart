@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 
 import 'api_exception.dart';
@@ -10,6 +12,24 @@ class ApiErrorMapper {
     final body = exception.response?.data;
     final errors = _validationErrors(body);
     final serverMessage = _serverMessage(body);
+
+    if (exception.error is HandshakeException) {
+      return ApiException(
+        'A secure connection to the server could not be established. '
+        'Please update Android or contact support.',
+      );
+    }
+    if (exception.error is SocketException) {
+      return ApiException(
+        'Unable to connect to the server. Please check your internet connection.',
+      );
+    }
+    if (exception.error is FormatException) {
+      return ApiException(
+        'The server returned an invalid response. Please try again.',
+        statusCode: status,
+      );
+    }
 
     return ApiException(
       _messageFor(
@@ -43,12 +63,14 @@ class ApiErrorMapper {
     if (status == null) {
       return switch (type) {
         DioExceptionType.connectionTimeout =>
-          'Connection timed out. Please try again.',
+          'The request timed out. Please try again.',
         DioExceptionType.sendTimeout || DioExceptionType.receiveTimeout =>
-          'The server took too long to respond. Please try again.',
+          'The request timed out. Please try again.',
         DioExceptionType.connectionError =>
-          'Unable to connect. Check your internet connection and try again.',
-        _ => 'Unable to complete the request. Please try again.',
+          'Unable to connect to the server. Please check your internet connection.',
+        DioExceptionType.cancel =>
+          'The request was cancelled. Please try again.',
+        _ => 'The request could not be completed. Please try again.',
       };
     }
 
@@ -57,16 +79,32 @@ class ApiErrorMapper {
       403 => serverMessage ?? 'You do not have permission to do that.',
       404 => serverMessage ?? 'This transaction could not be found.',
       405 => 'This operation is not supported by the server.',
-      409 => serverMessage ?? 'This item is in use and cannot be changed.',
+      409 =>
+        _duplicateMessage(errors, serverMessage) ??
+            'The request conflicts with an existing record.',
       422 =>
         _firstValidationMessage(errors) ??
             serverMessage ??
-            'Please check the transaction details and try again.',
-      >= 500 =>
-        serverMessage ??
-            'The server could not complete the request. Please try again.',
+            'Please check the submitted details and try again.',
+      429 => 'Too many attempts. Please wait a moment and try again.',
+      >= 500 => 'The server could not complete the request. Please try again.',
       _ => serverMessage ?? 'The request could not be completed.',
     };
+  }
+
+  static String? _duplicateMessage(
+    Map<String, dynamic> errors,
+    String? serverMessage,
+  ) {
+    if (errors.containsKey('email') ||
+        (serverMessage?.toLowerCase().contains('email') ?? false)) {
+      return 'This email address is already registered.';
+    }
+    if (errors.containsKey('phone') ||
+        (serverMessage?.toLowerCase().contains('phone') ?? false)) {
+      return 'This phone number is already registered.';
+    }
+    return serverMessage;
   }
 
   static String? _firstValidationMessage(Map<String, dynamic> errors) {

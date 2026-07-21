@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:expense_tracker/core/network/api_client.dart';
 import 'package:expense_tracker/core/network/api_error_mapper.dart';
@@ -101,6 +103,76 @@ void main() {
       'This action is unauthorized.',
     );
   });
+
+  test('registration-relevant HTTP statuses have complete messages', () {
+    expect(
+      ApiErrorMapper.fromDio(
+        _responseError(400, {'message': 'Registration failed.'}),
+      ).message,
+      'Registration failed.',
+    );
+    expect(
+      ApiErrorMapper.fromDio(
+        _responseError(409, {
+          'message': 'Registration failed',
+          'errors': {
+            'email': ['Duplicate'],
+          },
+        }),
+      ).message,
+      'This email address is already registered.',
+    );
+    expect(
+      ApiErrorMapper.fromDio(
+        _responseError(429, {'message': 'Too Many'}),
+      ).message,
+      'Too many attempts. Please wait a moment and try again.',
+    );
+    expect(
+      ApiErrorMapper.fromDio(_responseError(500, '<html>Error</html>')).message,
+      'The server could not complete the request. Please try again.',
+    );
+    expect(
+      ApiErrorMapper.fromDio(_responseError(503, const {})).message,
+      'The server could not complete the request. Please try again.',
+    );
+  });
+
+  test('timeouts, sockets, handshakes, and invalid JSON are distinguished', () {
+    expect(
+      ApiErrorMapper.fromDio(
+        _transportError(DioExceptionType.connectionTimeout),
+      ).message,
+      'The request timed out. Please try again.',
+    );
+    expect(
+      ApiErrorMapper.fromDio(
+        _transportError(
+          DioExceptionType.connectionError,
+          error: const SocketException('No route to host'),
+        ),
+      ).message,
+      'Unable to connect to the server. Please check your internet connection.',
+    );
+    expect(
+      ApiErrorMapper.fromDio(
+        _transportError(
+          DioExceptionType.connectionError,
+          error: const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
+        ),
+      ).message,
+      contains('secure connection'),
+    );
+    expect(
+      ApiErrorMapper.fromDio(
+        _transportError(
+          DioExceptionType.unknown,
+          error: const FormatException('Unexpected character'),
+        ),
+      ).message,
+      'The server returned an invalid response. Please try again.',
+    );
+  });
 }
 
 DioException _responseError(int statusCode, dynamic data) {
@@ -113,5 +185,13 @@ DioException _responseError(int statusCode, dynamic data) {
       data: data,
     ),
     type: DioExceptionType.badResponse,
+  );
+}
+
+DioException _transportError(DioExceptionType type, {Object? error}) {
+  return DioException(
+    requestOptions: RequestOptions(path: '/auth/register', method: 'POST'),
+    type: type,
+    error: error,
   );
 }

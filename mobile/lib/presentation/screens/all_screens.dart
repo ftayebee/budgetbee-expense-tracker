@@ -17,6 +17,7 @@ import '../../presentation/widgets/app_widgets.dart';
 import '../../routes/app_routes.dart';
 import '../../features/analytics/presentation/premium_analytics_screen.dart';
 import '../../features/analytics/presentation/analytics_controller.dart';
+import 'accounts/account_form.dart';
 import 'transactions/transaction_filter_sheet.dart';
 
 void _selectMainTab(BuildContext context, int index, String fallbackRoute) {
@@ -499,6 +500,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       final ok = await auth.register(
                         name.text,
                         email.text,
+                        null,
                         pass.text,
                         confirm.text,
                       );
@@ -2112,70 +2114,23 @@ class AddAccountScreen extends StatefulWidget {
 }
 
 class _AddAccountScreenState extends State<AddAccountScreen> {
-  final form = GlobalKey<FormState>();
-  final name = TextEditingController(),
-      balance = TextEditingController(text: '0');
-  String type = 'cash';
-
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: PrototypeTopBar(
       title: 'Add Account',
       onBack: () => Navigator.pop(context),
     ),
-    body: Consumer<AccountProvider>(
-      builder: (_, state, __) => Form(
-        key: form,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            PrototypeInput(
-              controller: name,
-              label: 'Account Name',
-              placeholder: 'Cash Wallet',
-              icon: Icons.account_balance_wallet,
-              validator: Validators.required,
-            ),
-            const SizedBox(height: 14),
-            _ChipSection(
-              title: 'Account Type',
-              children: ['cash', 'bank', 'mobile_banking', 'card', 'other']
-                  .map(
-                    (t) => _SelectablePill(
-                      label: t.replaceAll('_', ' '),
-                      icon: '💳',
-                      selected: type == t,
-                      onTap: () => setState(() => type = t),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 14),
-            PrototypeInput(
-              controller: balance,
-              label: 'Opening Balance',
-              prefix: '৳ ',
-              keyboardType: TextInputType.number,
-              validator: Validators.amount,
-            ),
-            const SizedBox(height: 18),
-            PrototypeButton(
-              label: 'Save Account',
-              onPressed: state.loading
-                  ? null
-                  : () async {
-                      if (!form.currentState!.validate()) return;
-                      await state.save({
-                        'name': name.text,
-                        'type': type,
-                        'opening_balance': double.parse(balance.text),
-                      });
-                      if (mounted && state.error == null)
-                        Navigator.pop(context);
-                    },
-            ),
-          ],
-        ),
+    body: SafeArea(
+      child: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.all(16),
+        children: [
+          AccountForm(
+            onSaved: (_) {
+              if (mounted) Navigator.pop(context, true);
+            },
+          ),
+        ],
       ),
     ),
   );

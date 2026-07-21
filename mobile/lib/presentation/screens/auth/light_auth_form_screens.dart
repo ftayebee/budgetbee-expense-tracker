@@ -19,6 +19,7 @@ class _LightRegisterScreenState extends State<LightRegisterScreen> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _email = TextEditingController();
+  final _phone = TextEditingController();
   final _password = TextEditingController();
   final _confirmation = TextEditingController();
   bool _obscurePassword = true;
@@ -28,6 +29,7 @@ class _LightRegisterScreenState extends State<LightRegisterScreen> {
   void dispose() {
     _name.dispose();
     _email.dispose();
+    _phone.dispose();
     _password.dispose();
     _confirmation.dispose();
     super.dispose();
@@ -35,13 +37,16 @@ class _LightRegisterScreenState extends State<LightRegisterScreen> {
 
   Future<void> _register(AuthProvider auth) async {
     FocusScope.of(context).unfocus();
+    auth.clearErrors();
     if (!(_form.currentState?.validate() ?? false)) return;
     final ok = await auth.register(
       _name.text.trim(),
       _email.text.trim(),
+      _phone.text.trim().isEmpty ? null : _phone.text.trim(),
       _password.text,
       _confirmation.text,
     );
+    if (mounted && !ok) _form.currentState?.validate();
     if (mounted && ok) {
       Navigator.pushNamedAndRemoveUntil(
         context,
@@ -68,7 +73,9 @@ class _LightRegisterScreenState extends State<LightRegisterScreen> {
                 label: 'Full Name',
                 placeholder: 'Your name',
                 icon: Icons.person_outline_rounded,
-                validator: Validators.required,
+                validator: (value) =>
+                    auth.fieldError('name') ?? Validators.required(value),
+                onChanged: (_) => _clearServerError(auth),
               ),
               const SizedBox(height: 14),
               PrototypeInput(
@@ -77,7 +84,20 @@ class _LightRegisterScreenState extends State<LightRegisterScreen> {
                 placeholder: 'you@example.com',
                 icon: Icons.mail_outline_rounded,
                 keyboardType: TextInputType.emailAddress,
-                validator: Validators.email,
+                validator: (value) =>
+                    auth.fieldError('email') ?? Validators.email(value),
+                onChanged: (_) => _clearServerError(auth),
+              ),
+              const SizedBox(height: 14),
+              PrototypeInput(
+                controller: _phone,
+                label: 'Phone (optional)',
+                placeholder: '+880 1XXXXXXXXX',
+                icon: Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
+                validator: (value) =>
+                    auth.fieldError('phone') ?? Validators.phone(value),
+                onChanged: (_) => _clearServerError(auth),
               ),
               const SizedBox(height: 14),
               _PasswordField(
@@ -86,6 +106,9 @@ class _LightRegisterScreenState extends State<LightRegisterScreen> {
                 obscure: _obscurePassword,
                 onToggle: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
+                validator: (value) =>
+                    auth.fieldError('password') ?? Validators.password(value),
+                onChanged: (_) => _clearServerError(auth),
               ),
               const SizedBox(height: 14),
               _PasswordField(
@@ -96,14 +119,17 @@ class _LightRegisterScreenState extends State<LightRegisterScreen> {
                   () => _obscureConfirmation = !_obscureConfirmation,
                 ),
                 validator: (value) {
+                  final serverError = auth.fieldError('password_confirmation');
+                  if (serverError != null) return serverError;
                   final required = Validators.required(value);
                   if (required != null) return required;
                   return value == _password.text
                       ? null
                       : 'Passwords do not match';
                 },
+                onChanged: (_) => _clearServerError(auth),
               ),
-              if (auth.error != null) ...[
+              if (auth.error != null && auth.fieldErrors.isEmpty) ...[
                 const SizedBox(height: 12),
                 Semantics(
                   liveRegion: true,
@@ -138,6 +164,10 @@ class _LightRegisterScreenState extends State<LightRegisterScreen> {
       ],
     ),
   );
+
+  void _clearServerError(AuthProvider auth) {
+    if (auth.fieldErrors.isNotEmpty) auth.clearErrors();
+  }
 }
 
 class LightForgotPasswordScreen extends StatefulWidget {
@@ -239,6 +269,7 @@ class _PasswordField extends StatelessWidget {
     required this.obscure,
     required this.onToggle,
     this.validator = Validators.required,
+    this.onChanged,
   });
 
   final TextEditingController controller;
@@ -246,6 +277,7 @@ class _PasswordField extends StatelessWidget {
   final bool obscure;
   final VoidCallback onToggle;
   final String? Function(String?) validator;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) => TextFormField(
@@ -253,6 +285,7 @@ class _PasswordField extends StatelessWidget {
     obscureText: obscure,
     validator: validator,
     autofillHints: const [AutofillHints.newPassword],
+    onChanged: onChanged,
     style: const TextStyle(color: AuthTheme.textPrimary),
     decoration: InputDecoration(
       labelText: label,

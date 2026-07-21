@@ -5,9 +5,11 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/models/account_model.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../providers/app_providers.dart';
 import '../../widgets/app_widgets.dart';
+import '../accounts/account_form.dart';
 
 class CompactAddTransactionScreen extends StatefulWidget {
   const CompactAddTransactionScreen({
@@ -98,6 +100,24 @@ class _CompactAddTransactionScreenState
       selectionError = null;
       form.currentState?.reset();
     });
+  }
+
+  Future<void> _quickAddAccount() async {
+    final account = await showModalBottomSheet<AccountModel>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: false,
+      builder: (_) => const QuickAddAccountSheet(),
+    );
+    if (!mounted || account == null) return;
+    setState(() {
+      accountId = account.id;
+      selectionError = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Account added successfully.')),
+    );
   }
 
   @override
@@ -193,18 +213,57 @@ class _CompactAddTransactionScreenState
                             .toList(),
                       ),
                       const SizedBox(height: 10),
-                      CustomDropdown<int>(
-                        value: selectedAccount,
-                        label: 'Account',
-                        onChanged: (v) => setState(() => accountId = v),
-                        items: accounts.accounts
-                            .map(
-                              (a) => DropdownMenuItem(
-                                value: a.id,
-                                child: Text(a.name),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: CustomDropdown<int>(
+                              key: const ValueKey(
+                                'transaction-account-dropdown',
                               ),
-                            )
-                            .toList(),
+                              value: selectedAccount,
+                              label: 'Account',
+                              onChanged: (v) => setState(() => accountId = v),
+                              items: accounts.accounts
+                                  .map(
+                                    (a) => DropdownMenuItem(
+                                      value: a.id,
+                                      child: Text(a.name),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Semantics(
+                            button: true,
+                            label: 'Add account',
+                            child: Tooltip(
+                              message: 'Add account',
+                              child: SizedBox.square(
+                                dimension: 50,
+                                child: IconButton(
+                                  key: const ValueKey(
+                                    'quick-add-account-button',
+                                  ),
+                                  onPressed: _quickAddAccount,
+                                  style: IconButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    backgroundColor: context.appPrimarySoft,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      side: BorderSide(
+                                        color: context.appBorder,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.add_rounded),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                     const SizedBox(height: 10),

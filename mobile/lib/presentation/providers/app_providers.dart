@@ -14,14 +14,31 @@ import '../../data/repositories/repositories.dart';
 class Loadable extends ChangeNotifier {
   bool loading = false;
   String? error;
+  Map<String, dynamic> fieldErrors = const {};
+
+  String? fieldError(String field) {
+    final value = fieldErrors[field];
+    if (value is List && value.isNotEmpty) return value.first.toString();
+    if (value is String && value.isNotEmpty) return value;
+    return null;
+  }
+
+  void clearErrors() {
+    error = null;
+    fieldErrors = const {};
+    notifyListeners();
+  }
+
   Future<T?> run<T>(Future<T> Function() task) async {
     loading = true;
     error = null;
+    fieldErrors = const {};
     notifyListeners();
     try {
       return await task();
     } on ApiException catch (e) {
       error = e.message;
+      fieldErrors = e.errors;
     } catch (e, stackTrace) {
       assert(() {
         debugPrint('Unexpected provider error: $e\n$stackTrace');
@@ -65,11 +82,13 @@ class AuthProvider extends Loadable {
   Future<bool> register(
     String name,
     String email,
+    String? phone,
     String password,
     String confirmation,
   ) async {
+    if (loading) return false;
     final result = await run(
-      () => repo.register(name, email, password, confirmation),
+      () => repo.register(name, email, phone, password, confirmation),
     );
     if (result == null) return false;
     user = result.user;
@@ -80,6 +99,12 @@ class AuthProvider extends Loadable {
 
   Future<void> logout() async {
     await run(repo.logout);
+    user = null;
+    await storage.clear();
+    notifyListeners();
+  }
+
+  Future<void> expireSession() async {
     user = null;
     await storage.clear();
     notifyListeners();
@@ -121,12 +146,21 @@ class AccountProvider extends Loadable {
   AccountProvider(this.repo);
   final AccountRepository repo;
   List<AccountModel> accounts = [];
+  AccountModel? lastSaved;
   Future<void> load() async => accounts = await run(repo.all) ?? accounts;
   Future<bool> save(Map<String, dynamic> data, [int? id]) async {
-    final result = await run(
+    if (loading) return false;
+    lastSaved = await run(
       () => id == null ? repo.create(data) : repo.update(id, data),
     );
-    if (result == null) return false;
+    if (lastSaved == null) return false;
+    final index = accounts.indexWhere((account) => account.id == lastSaved!.id);
+    if (index == -1) {
+      accounts.insert(0, lastSaved!);
+    } else {
+      accounts[index] = lastSaved!;
+    }
+    notifyListeners();
     await load();
     return true;
   }

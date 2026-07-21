@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/errors/app_error_handler.dart';
 import 'core/network/api_client.dart';
 import 'core/security/app_lock_service.dart';
 import 'core/settings/app_settings_service.dart';
@@ -15,6 +16,7 @@ import 'features/analytics/presentation/analytics_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppErrorHandler.install();
   final preferences = await SharedPreferences.getInstance();
   final settingsService = AppSettingsService(preferences);
   final storage = TokenStorage();
